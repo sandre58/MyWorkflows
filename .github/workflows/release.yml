@@ -3,10 +3,6 @@ name: Release
 on:
   workflow_call:
     inputs:
-      ref:
-        description: "Git ref (branch/tag) to use for MyWorkflows actions"
-        type: string
-        default: 'main'
       prerelease-keywords:
         description: "Keywords that indicate a prerelease version (pipe-separated)"
         type: string
@@ -81,7 +77,7 @@ jobs:
 
       - name: Parse tag
         id: parse
-        uses: sandre58/MyWorkflows/actions/parse-tag@${{ inputs.ref }}
+        uses: sandre58/MyWorkflows/actions/parse-tag@main
         with:
           tag: ${{ github.ref_name }}
           prerelease-keywords: ${{ inputs.prerelease-keywords }}
@@ -143,7 +139,7 @@ jobs:
           ref: ${{ github.ref }}
 
       - name: Build and Test
-        uses: sandre58/MyWorkflows/actions/build-and-test@${{ inputs.ref }}
+        uses: sandre58/MyWorkflows/actions/build-and-test@main
         with:
           project-path: ${{ needs.discover.outputs.project-path }}
           version: ${{ needs.discover.outputs.version }}
@@ -152,7 +148,7 @@ jobs:
 
       - name: Pack
         id: pack
-        uses: sandre58/MyWorkflows/actions/pack@${{ inputs.ref }}
+        uses: sandre58/MyWorkflows/actions/pack@main
         with:
           project-path: ${{ needs.discover.outputs.project-path }}
           version: ${{ needs.discover.outputs.version }}
@@ -181,7 +177,7 @@ jobs:
           path: packages
 
       - name: Publish stable release
-        uses: sandre58/MyWorkflows/actions/publish@${{ inputs.ref }}
+        uses: sandre58/MyWorkflows/actions/publish@main
         with:
           packages-path: packages/*.nupkg
           source-url: ${{ inputs.release-nuget-source }}
@@ -204,7 +200,7 @@ jobs:
           path: packages
 
       - name: Publish prerelease
-        uses: sandre58/MyWorkflows/actions/publish@${{ inputs.ref }}
+        uses: sandre58/MyWorkflows/actions/publish@main
         with:
           packages-path: packages/*.nupkg
           source-url: ${{ inputs.prerelease-nuget-source }}
@@ -229,14 +225,14 @@ jobs:
       - name: Calculate changelog tag range
         id: tag-range
         if: inputs.changelog-enabled == true
-        uses: sandre58/MyWorkflows/actions/calculate-tag-range@${{ inputs.ref }}
+        uses: sandre58/MyWorkflows/actions/calculate-tag-range@main
         with:
           current-tag: ${{ needs.discover.outputs.tag }}
 
       - name: Generate Changelog
         id: changelog
         if: inputs.changelog-enabled == true
-        uses: sandre58/MyWorkflows/actions/generate-changelog@${{ inputs.ref }}
+        uses: sandre58/MyWorkflows/actions/generate-changelog@main
         with:
           tag: ${{ steps.tag-range.outputs.tag-range }}
           repository-url: ${{ github.server_url }}/${{ github.repository }}
@@ -244,7 +240,7 @@ jobs:
 
       - name: Generate Full Changelog
         if: inputs.changelog-enabled == true
-        uses: sandre58/MyWorkflows/actions/generate-changelog@${{ inputs.ref }}
+        uses: sandre58/MyWorkflows/actions/generate-changelog@main
         with:
           tag: ${{ needs.discover.outputs.tag }}
           repository-url: ${{ github.server_url }}/${{ github.repository }}
@@ -284,7 +280,7 @@ jobs:
           fi
 
       - name: Create GitHub Release
-        uses: sandre58/MyWorkflows/actions/create-release@${{ inputs.ref }}
+        uses: sandre58/MyWorkflows/actions/create-release@main
         with:
           tag: ${{ needs.discover.outputs.tag }}
           project-name: ${{ needs.discover.outputs.project-name }}

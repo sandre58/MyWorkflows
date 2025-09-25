@@ -3,10 +3,6 @@ name: CI
 on:
   workflow_call:
     inputs:
-      ref:
-        description: "Git ref (branch/tag) to use for MyWorkflows actions"
-        type: string
-        default: 'main'
       dotnet-versions:
         description: "Versions of .NET to install"
         type: string
@@ -41,14 +37,14 @@ jobs:
           ref: ${{ github.ref }}
 
       - name: Build and Test
-        uses: sandre58/MyWorkflows/actions/build-and-test@${{ inputs.ref }}
+        uses: sandre58/MyWorkflows/actions/build-and-test@main
         with:
           dotnet-versions: ${{ inputs.dotnet-versions }}
           runsettings-file: ${{ inputs.runsettings-file }}
 
       - name: Pack
         id: pack
-        uses: sandre58/MyWorkflows/actions/pack@${{ inputs.ref }}
+        uses: sandre58/MyWorkflows/actions/pack@main
         with:
           pack-args: "--no-build"
 
