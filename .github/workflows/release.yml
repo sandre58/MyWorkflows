@@ -1,0 +1,291 @@
+name: Release
+
+on:
+  workflow_call:
+    inputs:
+      prerelease-keywords:
+        description: "Keywords that indicate a prerelease version (pipe-separated)"
+        type: string
+        default: 'alpha|beta|rc|preview|pre'
+      dotnet-versions:
+        description: "Versions of .NET to install"
+        type: string
+        default: |
+          10.0.x
+          9.0.x
+          8.0.x
+      changelog-enabled:
+        description: "Whether to enable changelog generation"
+        type: boolean
+        default: true
+      src-path:
+        description: "Path to search for project files"
+        type: string
+        default: 'src'
+      runsettings-file:
+        description: "Path to .runsettings file for test configuration"
+        type: string
+        required: false
+        default: '.runsettings'
+      release-nuget-source:
+        description: "NuGet source URL for stable releases"
+        type: string
+        default: 'https://api.nuget.org/v3/index.json'
+      prerelease-nuget-source:
+        description: "NuGet source URL for prereleases"
+        type: string
+        default: 'https://api.nuget.org/v3/index.json'
+      changelog-file:
+        description: "Path to the changelog file"
+        type: string
+        default: 'CHANGELOG.md'
+    secrets:
+      RELEASE_API_KEY:
+        description: "API key for publishing stable releases"
+        required: true
+      PRERELEASE_API_KEY:
+        description: "API key for publishing prereleases"
+        required: true
+      GITHUB_TOKEN:
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.parse.outputs.version }}
+      project-name: ${{ steps.parse.outputs.project-name }}
+      project-path: ${{ steps.find-project.outputs.project-path }}
+      project-dir: ${{ steps.find-project.outputs.project-dir }}
+      tag: ${{ github.ref_name }}
+      is-prerelease: ${{ steps.parse.outputs.is-prerelease }}
+      changelog-path: ${{ steps.calculate-paths.outputs.changelog-path }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref }}
+
+      - name: Parse tag
+        id: parse
+        uses: ./actions/parse-tag
+        with:
+          tag: ${{ github.ref_name }}
+          prerelease-keywords: ${{ inputs.prerelease-keywords }}
+
+      - name: Find project files
+        id: find-project
+        shell: bash
+        run: |
+          project_name="${{ steps.parse.outputs.project-name }}"
+          
+          if [[ -n "$project_name" ]]; then
+            project_path=$(find ${{ inputs.src-path }} -name "$project_name.csproj" -type f | head -n1)
+            if [[ -n "$project_path" ]]; then
+              project_dir=$(dirname "$project_path")
+              echo "Found project: $project_path"
+            else
+              echo "Project file not found for: $project_name"
+              project_path=""
+              project_dir=""
+            fi
+          else
+            echo "No project name provided (vX.Y.Z format tag)"
+            project_path=""
+            project_dir=""
+          fi
+
+          echo "project-path=$project_path" >> $GITHUB_OUTPUT
+          echo "project-dir=$project_dir" >> $GITHUB_OUTPUT
+
+      - name: Calculate paths
+        id: calculate-paths
+        shell: bash
+        run: |
+          project_dir="${{ steps.find-project.outputs.project-dir }}"
+          changelog_filename="${{ inputs.changelog-file }}"
+          
+          if [[ -n "$project_dir" ]]; then
+            # Si un projet est défini, placer le changelog dans le dossier du projet
+            changelog_path="$project_dir/$changelog_filename"
+            echo "Project found, changelog will be saved to: $changelog_path"
+          else
+            # Sinon, placer le changelog à la racine
+            changelog_path="$changelog_filename"
+            echo "No project found, changelog will be saved to root: $changelog_path"
+          fi
+          
+          echo "changelog-path=$changelog_path" >> $GITHUB_OUTPUT
+
+  build-test-and-pack:
+    runs-on: ubuntu-latest
+    needs: discover
+    outputs:
+      packages-path: ${{ steps.pack.outputs.packages-path }}
+      output-directory: ${{ steps.pack.outputs.output-directory }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref }}
+
+      - name: Build and Test
+        uses: ./actions/build-and-test
+        with:
+          project-path: ${{ needs.discover.outputs.project-path }}
+          version: ${{ needs.discover.outputs.version }}
+          dotnet-versions: ${{ inputs.dotnet-versions }}
+          runsettings-file: ${{ inputs.runsettings-file }}
+
+      - name: Pack
+        id: pack
+        uses: ./actions/pack
+        with:
+          project-path: ${{ needs.discover.outputs.project-path }}
+          version: ${{ needs.discover.outputs.version }}
+          pack-args: "--no-build"
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages
+          path: ${{ steps.pack.outputs.output-directory }}/*.nupkg
+
+  publish-release:
+    runs-on: ubuntu-latest
+    needs: [discover, build-test-and-pack]
+    if: needs.discover.outputs.is-prerelease == 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref }}
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-packages
+          path: packages
+
+      - name: Publish stable release
+        uses: ./actions/publish
+        with:
+          packages-path: packages/*.nupkg
+          source-url: ${{ inputs.release-nuget-source }}
+          api-key: ${{ secrets.RELEASE_API_KEY }}
+
+  publish-prerelease:
+    runs-on: ubuntu-latest
+    needs: [discover, build-test-and-pack]
+    if: needs.discover.outputs.is-prerelease == 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref }}
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-packages
+          path: packages
+
+      - name: Publish prerelease
+        uses: ./actions/publish
+        with:
+          packages-path: packages/*.nupkg
+          source-url: ${{ inputs.prerelease-nuget-source }}
+          api-key: ${{ secrets.PRERELEASE_API_KEY }}
+
+  create-release:
+    runs-on: ubuntu-latest
+    needs: [discover, publish-release, publish-prerelease]
+    if: always() && (needs.publish-release.result == 'success' || needs.publish-prerelease.result == 'success')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref }}
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-packages
+          path: packages
+
+      - name: Calculate changelog tag range
+        id: tag-range
+        if: inputs.changelog-enabled == true
+        uses: ./actions/calculate-tag-range
+        with:
+          current-tag: ${{ needs.discover.outputs.tag }}
+
+      - name: Generate Changelog
+        id: changelog
+        if: inputs.changelog-enabled == true
+        uses: ./actions/generate-changelog
+        with:
+          tag: ${{ steps.tag-range.outputs.tag-range }}
+          repository-url: ${{ github.server_url }}/${{ github.repository }}
+          title: ${{ needs.discover.outputs.project-name || github.repository }}
+
+      - name: Generate Full Changelog
+        if: inputs.changelog-enabled == true
+        uses: ./actions/generate-changelog
+        with:
+          tag: ${{ needs.discover.outputs.tag }}
+          repository-url: ${{ github.server_url }}/${{ github.repository }}
+          title: ${{ needs.discover.outputs.project-name || github.repository }}
+          output-file: ${{ needs.discover.outputs.changelog-path }}
+
+      - name: Commit and push changelog
+        if: inputs.changelog-enabled == true
+        shell: bash
+        run: |
+          changelog_path="${{ needs.discover.outputs.changelog-path }}"
+          project_name="${{ needs.discover.outputs.project-name }}"
+          
+          # Configure git for the action
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          # Check if changelog file was created and has changes
+          if [[ -f "$changelog_path" ]]; then
+            # Add the changelog file
+            git add "$changelog_path"
+            
+            # Check if there are changes to commit
+            if git diff --cached --quiet; then
+              echo "No changes to commit for changelog"
+            else
+              # Commit the changelog
+              git commit -m "docs: update CHANGELOG.md for ${{ needs.discover.outputs.tag }} [ci skip]"
+              
+              # Push the changes
+              git push origin ${{ github.ref_name }}
+              
+              echo "Changelog committed and pushed successfully"
+            fi
+          else
+            echo "No changelog file found at: $changelog_path"
+          fi
+
+      - name: Create GitHub Release
+        uses: ./actions/create-release
+        with:
+          tag: ${{ needs.discover.outputs.tag }}
+          project-name: ${{ needs.discover.outputs.project-name }}
+          version: ${{ needs.discover.outputs.version }}
+          is-prerelease: ${{ needs.discover.outputs.is-prerelease }}
+          release-body: ${{ inputs.changelog-enabled == true && steps.changelog.outputs.changelog-content || 'Automated release' }}
+          artifacts-path: packages
+          github-token: ${{ secrets.GITHUB_TOKEN }}

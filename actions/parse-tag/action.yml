@@ -1,0 +1,58 @@
+name: "Parse Git Tag"
+description: "Parse a Git tag in format 'project-name/vX.Y.Z' or 'vX.Y.Z' and extract project information"
+inputs:
+  tag:
+    description: "Git tag to parse (e.g., MyProject/v1.0.0 or v1.0.0)"
+    required: true
+  prerelease-keywords:
+    description: "Keywords that indicate a prerelease version (pipe-separated)"
+    required: false
+    default: 'alpha|beta|rc|preview|pre'
+outputs:
+  version:
+    description: "Extracted version from tag"
+    value: ${{ steps.parse.outputs.version }}
+  project-name:
+    description: "Extracted project name from tag (empty for vX.Y.Z format)"
+    value: ${{ steps.parse.outputs.project_name }}
+  is-prerelease:
+    description: "Whether the version is a prerelease"
+    value: ${{ steps.detect-prerelease.outputs.is_prerelease }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Parse tag
+      id: parse
+      shell: bash
+      run: |
+        tag="${{ inputs.tag }}"
+        echo "Full tag => $tag"
+
+        if [[ "$tag" =~ ^(.+)/v(.+)$ ]]; then
+          # Format: project-name/vX.Y.Z
+          project_name="${BASH_REMATCH[1]}"
+          version="${BASH_REMATCH[2]}"
+        elif [[ "$tag" =~ ^v(.+)$ ]]; then
+          # Format: vX.Y.Z
+          project_name=""
+          version="${BASH_REMATCH[1]}"
+        else
+          echo "Invalid tag format => $tag (expected: project-name/vX.Y.Z or vX.Y.Z)"
+          exit 1
+        fi
+
+        echo "project_name=$project_name" >> $GITHUB_OUTPUT
+        echo "version=$version" >> $GITHUB_OUTPUT
+
+    - name: Detect prerelease
+      id: detect-prerelease
+      shell: bash
+      run: |
+        version="${{ steps.parse.outputs.version }}"
+        keywords="${{ inputs.prerelease-keywords }}"
+        if [[ "$version" =~ -($keywords) ]]; then
+          echo "is_prerelease=true" >> $GITHUB_OUTPUT
+        else
+          echo "is_prerelease=false" >> $GITHUB_OUTPUT
+        fi

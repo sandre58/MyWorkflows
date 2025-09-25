@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  workflow_call:
+    inputs:
+      dotnet-versions:
+        description: "Versions of .NET to install"
+        type: string
+        default: |
+          10.0.x
+          9.0.x
+          8.0.x
+      runsettings-file:
+        description: "Path to .runsettings file for test configuration"
+        type: string
+        required: false
+        default: '.runsettings'
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+
+jobs:
+  build-test-and-pack:
+    runs-on: ubuntu-latest
+    outputs:
+      packages-path: ${{ steps.pack.outputs.packages-path }}
+      output-directory: ${{ steps.pack.outputs.output-directory }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref }}
+
+      - name: Build and Test
+        uses: ./actions/build-and-test
+        with:
+          dotnet-versions: ${{ inputs.dotnet-versions }}
+          runsettings-file: ${{ inputs.runsettings-file }}
+
+      - name: Pack
+        id: pack
+        uses: ./actions/pack
+        with:
+          pack-args: "--no-build"
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages
+          path: ${{ steps.pack.outputs.output-directory }}/*.nupkg

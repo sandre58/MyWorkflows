@@ -1,0 +1,84 @@
+name: "Calculate Tag Range"
+description: "Calculate the tag range for changelog generation (previous tag to current tag)"
+inputs:
+  current-tag:
+    description: "Current tag to calculate range for"
+    required: true
+
+outputs:
+  tag-range:
+    description: "Calculated tag range (e.g., 'v1.0.0..v1.1.0' or just 'v1.1.0' if no previous tag)"
+    value: ${{ steps.calculate.outputs.tag-range }}
+  previous-tag:
+    description: "Previous tag found (empty if none)"
+    value: ${{ steps.calculate.outputs.previous-tag }}
+  pattern:
+    description: "Tag pattern used for filtering"
+    value: ${{ steps.calculate.outputs.pattern }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Calculate tag range
+      id: calculate
+      shell: bash
+      run: |
+        current_tag="${{ inputs.current-tag }}"
+        
+        # Auto-calculate pattern from current tag by replacing version with *
+        if [[ -n "$current_tag" ]]; then
+          # Handles formats like: v1.2.3, MyProject/v1.2.3, prefix-v1.2.3-suffix
+          tag_pattern=$(echo "$current_tag" | sed -E 's/[0-9]+\.[0-9]+\.[0-9]+([.-][a-zA-Z0-9]+)*/*/g')
+          echo "Auto-calculated pattern from '$current_tag': $tag_pattern"
+        else
+          tag_pattern="*"
+          echo "No current tag, using default pattern: $tag_pattern"
+        fi
+        
+        if [[ -n "$current_tag" ]]; then
+          echo "Finding previous tag before: $current_tag"
+          echo "Using tag pattern: $tag_pattern"
+          
+          # Get tags matching the pattern, sorted by version (descending)
+          if [[ "$tag_pattern" == "*" ]]; then
+            # No pattern filtering, get all tags
+            all_tags=$(git tag -l --sort=-version:refname)
+          else
+            # Filter tags by pattern
+            all_tags=$(git tag -l --sort=-version:refname "$tag_pattern")
+          fi
+          
+          echo "Available tags matching pattern:"
+          echo "$all_tags"
+          
+          # Find the tag that comes before the current tag
+          previous_tag=""
+          found_current=false
+          
+          while IFS= read -r tag; do
+            if [[ "$found_current" == true ]]; then
+              previous_tag="$tag"
+              break
+            fi
+            if [[ "$tag" == "$current_tag" ]]; then
+              found_current=true
+            fi
+          done <<< "$all_tags"
+          
+          if [[ -n "$previous_tag" ]]; then
+            echo "Previous tag found: $previous_tag"
+            tag_range="${previous_tag}..$current_tag"
+          else
+            echo "No previous tag found, using current tag only: $current_tag"
+            tag_range="$current_tag"
+          fi
+        else
+          echo "No current tag specified, using empty range"
+          tag_range=""
+          previous_tag=""
+        fi
+        
+        echo "tag-range=$tag_range" >> $GITHUB_OUTPUT
+        echo "previous-tag=$previous_tag" >> $GITHUB_OUTPUT
+        echo "pattern=$tag_pattern" >> $GITHUB_OUTPUT
+        echo "Calculated tag range: $tag_range"

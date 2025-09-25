@@ -1,0 +1,58 @@
+name: "Create GitHub Release"
+description: "Create a GitHub release with artifacts"
+inputs:
+  tag:
+    description: "Git tag for the release"
+    required: true
+  project-name:
+    description: "Name of the project"
+    required: true
+  version:
+    description: "Version number"
+    required: true
+  is-prerelease:
+    description: "Whether this is a prerelease"
+    required: false
+    default: 'false'
+  draft:
+    description: "Whether this is a draft release"
+    required: false
+    default: 'false'
+  artifacts-path:
+    description: "Path to release artifacts"
+    required: false
+    default: 'packages'
+  release-body:
+    description: "Release description/body"
+    required: false
+    default: 'Automated release'
+  github-token:
+    description: "GitHub token for creating release"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-artifacts
+        path: ${{ inputs.artifacts-path }}/*.nupkg
+
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: release-artifacts
+        path: release-artifacts
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      with:
+        tag_name: ${{ inputs.tag }}
+        name: ${{ inputs.project-name }} v${{ inputs.version }}
+        body: ${{ inputs.release-body }}
+        draft: ${{ inputs.draft == 'true' }}
+        prerelease: ${{ inputs.is-prerelease == 'true' }}
+        files: release-artifacts/*.nupkg

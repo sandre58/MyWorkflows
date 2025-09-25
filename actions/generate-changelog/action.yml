@@ -1,0 +1,146 @@
+name: "Generate Changelog"
+description: "Generate a changelog using git-chglog"
+inputs:
+  git-chglog-version:
+    description: "Version of git-chglog to install"
+    required: false
+    default: 'latest'
+  tag:
+    description: "Git tag to generate changelog for"
+    required: false
+  next-tag:
+    description: "Next tag for unreleased changes"
+    required: false
+  title:
+    description: "Title for the changelog"
+    required: true
+  config-file:
+    description: "Path to git-chglog configuration file"
+    required: false
+    default: '.chglog/config.yml'
+  repository-url:
+    description: "Repository URL for links (auto-detected if not provided)"
+    required: false
+  output-file:
+    description: "Output file for the changelog"
+    required: false
+  format:
+    description: "Output format (markdown, json, etc.)"
+    required: false
+    default: 'markdown'
+
+outputs:
+  changelog-content:
+    description: "Generated changelog content"
+    value: ${{ steps.generate.outputs.changelog }}
+  changelog-file:
+    description: "Path to the generated changelog file"
+    value: ${{ inputs.output-file }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install git-chglog
+      shell: bash
+      run: |
+        if ! command -v git-chglog &> /dev/null; then
+          echo "Installing git-chglog..."
+          
+          # Detect OS and architecture
+          OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+          ARCH=$(uname -m)
+          
+          case $ARCH in
+            x86_64) ARCH="amd64" ;;
+            aarch64|arm64) ARCH="arm64" ;;
+            armv7l) ARCH="armv7" ;;
+          esac
+          
+          if [[ "${{ inputs.git-chglog-version }}" == "latest" ]]; then
+            # Get latest version from GitHub API
+            VERSION=$(curl -s https://api.github.com/repos/git-chglog/git-chglog/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+          else
+            VERSION="${{ inputs.git-chglog-version }}"
+          fi
+          
+          # Download and install
+          DOWNLOAD_URL="https://github.com/git-chglog/git-chglog/releases/download/${VERSION}/git-chglog_${VERSION}_${OS}_${ARCH}.tar.gz"
+          
+          echo "Downloading git-chglog from: $DOWNLOAD_URL"
+          curl -sL "$DOWNLOAD_URL" | tar xz
+          
+          # Make executable and move to PATH
+          chmod +x git-chglog
+          sudo mv git-chglog /usr/local/bin/
+          
+          echo "git-chglog installed successfully"
+        else
+          echo "git-chglog already installed"
+        fi
+        
+        git-chglog --version
+
+    - name: Initialize git-chglog config (if not exists)
+      shell: bash
+      run: |
+        if [[ ! -f "${{ inputs.config-file }}" ]]; then
+          echo "Creating default git-chglog configuration..."
+          mkdir -p "$(dirname "${{ inputs.config-file }}")"
+          
+          # Copy default config and substitute repository URL
+          action_dir="${{ github.action_path }}"
+          config_template="$action_dir/templates/default-config.yml"
+          
+          if [[ -f "$config_template" ]]; then
+            # Replace repository URL placeholder
+            repo_url="${{ inputs.repository-url || github.server_url }}/${{ github.repository }}"
+            sed "s|{{ .Info.Title }}|${{ inputs.title }}|g" "$config_template" > "${{ inputs.config-file }}"
+            sed "s|{{ .Info.RepositoryURL }}|$repo_url|g" "${{ inputs.config-file }}" > "${{ inputs.config-file }}"
+          fi
+
+          # Create default template
+          template_file="$action_dir/templates/CHANGELOG.tpl.md"
+          config_dir="$(dirname "${{ inputs.config-file }}")"
+          if [[ -f "$template_file" ]]; then
+            cp "$template_file" "$config_dir/CHANGELOG.tpl.md"
+          fi
+          
+          echo "Default git-chglog template created"
+        fi
+
+    - name: Generate changelog
+      id: generate
+      shell: bash
+      run: |
+        # Build git-chglog command
+        cmd="git-chglog"
+        
+        if [[ -f "${{ inputs.config-file }}" ]]; then
+          cmd="$cmd --config ${{ inputs.config-file }}"
+        fi
+        
+        if [[ -n "${{ inputs.next-tag }}" ]]; then
+          cmd="$cmd --next-tag ${{ inputs.next-tag }}"
+        fi
+        
+        if [[ -n "${{ inputs.tag }}" ]]; then
+          cmd="$cmd ${{ inputs.tag }}"
+        fi
+        
+        echo "Running: $cmd"
+        
+        # Generate changelog
+        changelog_content=$($cmd)
+        
+        # Save to file only if output-file input provided
+        if [[ -n "${{ inputs.output-file }}" ]]; then
+          echo "$changelog_content" > "${{ inputs.output-file }}"
+          echo "Changelog generated and saved to: ${{ inputs.output-file }}"
+        else
+            echo "Input 'output-file' non fourni: le changelog ne sera pas écrit dans un fichier."
+        fi
+        
+        # Output for other steps
+        echo "changelog<<EOF" >> $GITHUB_OUTPUT
+        echo "$changelog_content" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT

@@ -1,0 +1,90 @@
+name: "Build and Test .NET Project"
+description: "Build and test a .NET project with specified configuration"
+inputs:
+  project-path:
+    description: "Path to the project file (.csproj)"
+    required: false
+  version:
+    description: "Version to use for the build"
+    required: false
+  configuration:
+    description: "Build configuration (Release, Debug, etc.)"
+    required: false
+    default: 'Release'
+  dotnet-versions:
+    description: "Versions of .NET to install"
+    required: false
+    default: |
+      10.0.x
+      9.0.x
+      8.0.x
+  run-tests:
+    description: "Whether to run tests after build"
+    required: false
+    default: 'true'
+  test-loggers:
+    description: "Test loggers to use (space-separated)"
+    required: false
+    default: 'GitHubActions'
+  runsettings-file:
+    description: "Path to .runsettings file for test configuration"
+    required: false
+  build-args:
+    description: "Additional arguments for dotnet build command"
+    required: false
+  test-args:
+    description: "Additional arguments for dotnet test command"
+    required: false
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ inputs.dotnet-versions }}
+
+    - name: Build
+      shell: bash
+      run: |
+        build_args="--configuration ${{ inputs.configuration }}"
+        
+        if [[ -n "${{ inputs.project-path }}" ]]; then
+          build_args="${{ inputs.project-path }} $build_args"
+        fi
+        
+        if [[ -n "${{ inputs.version }}" ]]; then
+          build_args="$build_args -p:Version=${{ inputs.version }} -p:AssemblyVersion=${{ inputs.version }} -p:FileVersion=${{ inputs.version }}"
+        fi
+        
+        if [[ -n "${{ inputs.build-args }}" ]]; then
+          build_args="$build_args ${{ inputs.build-args }}"
+        fi
+        
+        dotnet build $build_args
+
+    - name: Test
+      if: inputs.run-tests == 'true'
+      shell: bash
+      run: |
+        test_args="--configuration ${{ inputs.configuration }}"
+        
+        # Add runsettings file if specified
+        if [[ -n "${{ inputs.runsettings-file }}" ]]; then
+          test_args="$test_args --settings ${{ inputs.runsettings-file }}"
+        fi
+        
+        # Add loggers
+        if [[ -n "${{ inputs.test-loggers }}" ]]; then
+          IFS=' ' read -ra loggers <<< "${{ inputs.test-loggers }}"
+          for logger in "${loggers[@]}"; do
+            test_args="$test_args --logger $logger"
+          done
+        fi
+        
+        # Add custom test arguments
+        if [[ -n "${{ inputs.test-args }}" ]]; then
+          test_args="$test_args ${{ inputs.test-args }}"
+        fi
+        
+        dotnet test $test_args

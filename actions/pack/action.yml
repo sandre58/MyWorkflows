@@ -1,0 +1,66 @@
+name: "Pack .NET Package"
+description: "Pack a .NET project into NuGet package"
+inputs:
+  project-path:
+    description: "Path to the project file (.csproj)"
+    required: false
+  version:
+    description: "Package version"
+    required: false
+  configuration:
+    description: "Build configuration"
+    required: false
+    default: 'Release'
+  output-dir:
+    description: "Output directory for packages"
+    required: false
+    default: 'packages'
+  additional-properties:
+    description: "Additional MSBuild properties (space-separated, format: Key=Value)"
+    required: false
+  pack-args:
+    description: "Additional arguments for dotnet pack command"
+    required: false
+
+outputs:
+  packages-path:
+    description: "Path to generated packages"
+    value: ${{ inputs.output-dir }}/*.nupkg
+  output-directory:
+    description: "Output directory containing packages"
+    value: ${{ inputs.output-dir }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Pack
+      shell: bash
+      run: |
+        pack_args="--configuration ${{ inputs.configuration }}"
+        
+        if [[ -n "${{ inputs.project-path }}" ]]; then
+          pack_args="${{ inputs.project-path }} $pack_args"
+        fi
+        
+        if [[ -n "${{ inputs.version }}" ]]; then
+          pack_args="$pack_args -p:PackageVersion=${{ inputs.version }}"
+        fi
+        
+        if [[ -n "${{ inputs.output-dir }}" ]]; then
+          pack_args="$pack_args -o ${{ inputs.output-dir }}"
+        fi
+
+        pack_args="$pack_args -p:ContinuousIntegrationBuild=true"
+        
+        if [[ -n "${{ inputs.additional-properties }}" ]]; then
+          IFS=' ' read -ra props <<< "${{ inputs.additional-properties }}"
+          for prop in "${props[@]}"; do
+            pack_args="$pack_args -p:$prop"
+          done
+        fi
+        
+        if [[ -n "${{ inputs.pack-args }}" ]]; then
+          pack_args="$pack_args ${{ inputs.pack-args }}"
+        fi
+        
+        dotnet pack $pack_args
