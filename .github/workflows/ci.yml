@@ -25,7 +25,10 @@ on:
         default: true
 
 permissions:
-  contents: write
+  checks: write        # Required to publish test results
+  actions: read        # Required to read workflow runs
+  contents: write      # Required to checkout code and push to gh-pages
+  pages: write         # Required to publish to GitHub Pages
 
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
