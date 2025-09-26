@@ -88,17 +88,11 @@ jobs:
           working-directory: ${{ matrix.dir }}
           project-name: ${{ matrix.name }}
 
-      - name: Commit version files
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          TEMP_BRANCH="ci-version-update-$(date +%s)"
-          git fetch origin
-          git checkout -b "$TEMP_BRANCH" origin/${{ github.ref_name }}
-          git add . || true
-          git diff --staged --quiet || git commit -m "Update version.json files [skip ci]" || true
-          git push origin "$TEMP_BRANCH"
-          echo "::set-output name=temp-branch::$TEMP_BRANCH"
+      - name: Upload version files
+        uses: actions/upload-artifact@v3
+        with:
+          name: version-files
+          path: .
 
   build-test-and-pack:
     runs-on: ubuntu-latest
@@ -108,18 +102,16 @@ jobs:
       packages-path: ${{ steps.pack.outputs.packages-path }}
       output-directory: ${{ steps.pack.outputs.output-directory }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref }}
 
-      - name: Checkout temp branch with version updates
-        if: inputs.compute-versions == true && needs.compute-versions.result == 'success'
-        run: |
-          TEMP_BRANCH=$(git ls-remote --heads origin "ci-version-update-*" | tail -n1 | awk '{print $2}' | sed 's/refs\/heads\///')
-          if [ -n "$TEMP_BRANCH" ]; then
-            git fetch origin "$TEMP_BRANCH"
-            git checkout "$TEMP_BRANCH"
-          else
-            echo "No temp branch found, using ${{ github.ref_name }}"
-            git checkout ${{ github.ref_name }}
-          fi
+      - name: Download version files
+        uses: actions/download-artifact@v3
+        with:
+          name: version-files
+          path: ./downloaded-files
 
       - name: Build and Test
         uses: sandre58/MyWorkflows/actions/build-and-test@main
@@ -138,11 +130,3 @@ jobs:
         with:
           name: nuget-packages
           path: ${{ steps.pack.outputs.output-directory }}/*.nupkg
-
-      - name: Delete temp branch after build
-        run: |
-          TEMP_BRANCH=$(git branch --show-current)
-          if [[ "$TEMP_BRANCH" == ci-version-update-* ]]; then
-            git checkout ${{ github.ref_name }}
-            git push origin --delete "$TEMP_BRANCH"
-          fi
