@@ -44,11 +44,6 @@ runs:
       with:
         dotnet-version: ${{ inputs.dotnet-versions }}
 
-    - name: Install NBGV tool
-      shell: bash
-      run: |
-        dotnet tool install --global nbgv --version 3.6.143 || echo "NBGV already installed"
-
     - name: Build
       shell: bash
       run: |
