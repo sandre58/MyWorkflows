@@ -22,7 +22,7 @@ on:
       compute-versions:
         description: "Whether to compute versions automatically using semantic versioning"
         type: boolean
-        default: false
+        default: true
 
 permissions:
   contents: write
