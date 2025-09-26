@@ -139,3 +139,18 @@ jobs:
         with:
           name: nuget-packages
           path: ${{ steps.pack.outputs.output-directory }}/*.nupkg
+
+      - name: Publish Coverage Report
+        uses: codecov/codecov-action@v4
+        with:
+          files: TestResults/**/*.cobertura.xml
+          fail_ci_if_error: false
+          verbose: true
+
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: TestResults/**/*.trx
+          check_name: 'Test Results'
+          comment_mode: changes
+          fail_on: 'test failures'
