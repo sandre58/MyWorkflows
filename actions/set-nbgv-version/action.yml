@@ -1,0 +1,67 @@
+name: 'Set NBGV Version'
+description: 'Create or update version.json file for Nerdbank.GitVersioning'
+author: 'sandre58'
+
+inputs:
+  version:
+    description: 'Version to set (e.g., 1.2.3)'
+    required: true
+  working-directory:
+    description: 'Directory where version.json should be created/updated'
+    required: false
+    default: '.'
+  project-name:
+    description: 'Project name for logging purposes'
+    required: false
+    default: 'project'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install jq for JSON processing
+      shell: bash
+      run: |
+        if ! command -v jq &> /dev/null; then
+          sudo apt-get update
+          sudo apt-get install -y jq
+        fi
+
+    - name: Set version for ${{ inputs.project-name }}
+      shell: bash
+      run: |
+        version="${{ inputs.version }}"
+        project_name="${{ inputs.project-name }}"
+        working_dir="${{ inputs.working-directory }}"
+        
+        echo "Setting version $version for project $project_name"
+        
+        # Navigate to project directory
+        cd "$working_dir"
+        
+        # Create or update version.json
+        if [[ ! -f "version.json" ]]; then
+          echo "Creating version.json..."
+          jq -n \
+            --arg schema "https://raw.githubusercontent.com/dotnet/Nerdbank.GitVersioning/master/src/NerdBank.GitVersioning/version.schema.json" \
+            --arg version "$version" \
+            '{
+              "$schema": $schema,
+              "version": $version,
+              "publicReleaseRefSpec": [
+                "^refs/heads/main$",
+                "^refs/heads/master$"
+              ],
+              "cloudBuild": {
+                "buildNumber": {
+                  "enabled": true
+                }
+              }
+            }' > version.json
+        else
+          echo "Updating existing version.json..."
+          jq --arg ver "$version" '.version = $ver' version.json > version.json.tmp && mv version.json.tmp version.json
+        fi
+        
+        echo "Version set successfully to $version"
+        echo "Generated version.json:"
+        cat version.json

@@ -46,51 +46,9 @@ jobs:
 
       - name: Find all projects
         id: find-projects
-        shell: bash
-        run: |
-          echo "Searching for .csproj files in ${{ inputs.src-path }}..."
-          
-          # Find all .csproj files
-          projects=$(find ${{ inputs.src-path }} -name "*.csproj" -type f)
-          
-          if [[ -z "$projects" ]]; then
-            echo "No .csproj files found"
-            echo "projects=" >> $GITHUB_OUTPUT
-            echo "projects-matrix={\"include\":[]}" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          
-          # Build JSON array for matrix strategy
-          matrix_json="{"
-          matrix_json+='"include":['
-          
-          project_list=""
-          first=true
-          
-          while IFS= read -r project_path; do
-            if [[ -n "$project_path" ]]; then
-              project_dir=$(dirname "$project_path")
-              project_name=$(basename "$project_path" .csproj)
-              
-              if [[ "$first" == true ]]; then
-                first=false
-              else
-                matrix_json+=","
-                project_list+=","
-              fi
-              
-              matrix_json+="{\"name\":\"$project_name\",\"path\":\"$project_path\",\"dir\":\"$project_dir\"}"
-              project_list+="$project_name"
-              
-              echo "Found project: $project_name at $project_path"
-            fi
-          done <<< "$projects"
-          
-          matrix_json+=']}'
-          
-          echo "projects=$project_list" >> $GITHUB_OUTPUT
-          echo "projects-matrix=$matrix_json" >> $GITHUB_OUTPUT
-          echo "Projects matrix: $matrix_json"
+        uses: sandre58/MyWorkflows/actions/find-projects@main
+        with:
+          src-path: ${{ inputs.src-path }}
 
   compute-versions:
     runs-on: ubuntu-latest
@@ -116,28 +74,12 @@ jobs:
           project: ${{ matrix.name }}
           working-directory: ${{ matrix.dir }}
 
-      - name: Install NBGV
-        run: dotnet tool install --global nbgv
-
-      - name: Set version for ${{ matrix.name }}
-        shell: bash
-        run: |
-          version="${{ steps.version.outputs.version }}"
-          echo "Setting version $version for project ${{ matrix.name }}"
-          
-          # Navigate to project directory
-          cd "${{ matrix.dir }}"
-          
-          # Initialize or update version.json
-          if [[ ! -f "version.json" ]]; then
-            echo "Creating version.json..."
-            nbgv init
-          fi
-          
-          # Set the computed version
-          nbgv set-version "$version"
-          
-          echo "Version set successfully"
+      - name: Set NBGV version for ${{ matrix.name }}
+        uses: sandre58/MyWorkflows/actions/set-nbgv-version@main
+        with:
+          version: ${{ steps.version.outputs.version }}
+          working-directory: ${{ matrix.dir }}
+          project-name: ${{ matrix.name }}
 
   build-test-and-pack:
     runs-on: ubuntu-latest
