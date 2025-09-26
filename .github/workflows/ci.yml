@@ -7,6 +7,10 @@ on:
         description: "Path to search for project files"
         type: string
         default: 'src'
+      tests-path:
+        description: "Path to search for test files"
+        type: string
+        default: 'TestResults'
       dotnet-versions:
         description: "Versions of .NET to install"
         type: string
@@ -137,23 +141,40 @@ jobs:
         with:
           pack-args: "--no-build"
 
+      - name: Publish Coverage Report
+        uses: codecov/codecov-action@v4
+        with:
+          files: ${{ inputs.tests-path }}/**/*.cobertura.xml
+          fail_ci_if_error: false
+          verbose: true
+
+      - name: Generate coverage report
+        uses: danielpalme/ReportGenerator-GitHub-Action@v5
+        with:
+          reports: '${{ inputs.tests-path }}/**/*.cobertura.xml'
+          targetdir: 'coveragereport'
+          reporttypes: 'Html;MarkdownSummaryGithub'
+
+      - name: Publish Markdown Summary
+        run: |
+          echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
+          cat coveragereport/MarkdownSummaryGithub.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Coverage Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coveragereport
+
       - name: Upload packages
         uses: actions/upload-artifact@v4
         with:
           name: nuget-packages
           path: ${{ steps.pack.outputs.output-directory }}/*.nupkg
 
-      - name: Publish Coverage Report
-        uses: codecov/codecov-action@v4
+      - name: Deploy documentation to GitHub Pages
+        if: github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          files: TestResults/**/*.cobertura.xml
-          fail_ci_if_error: false
-          verbose: true
-
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        with:
-          files: TestResults/**/*.trx
-          check_name: 'Test Results'
-          comment_mode: changes
-          fail_on: 'test failures'
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: coveragereport
