@@ -25,7 +25,7 @@ inputs:
   test-loggers:
     description: "Test loggers to use (space-separated)"
     required: false
-    default: 'GitHubActions'
+    default: 'GitHubActions trx'
   runsettings-file:
     description: "Path to .runsettings file for test configuration"
     required: false
