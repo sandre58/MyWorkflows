@@ -158,7 +158,7 @@ jobs:
       - name: Publish Markdown Summary
         run: |
           echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
-          cat coveragereport/MarkdownSummaryGithub.md >> $GITHUB_STEP_SUMMARY
+          cat coveragereport/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
 
       - name: Upload Coverage Reports
         uses: actions/upload-artifact@v4
