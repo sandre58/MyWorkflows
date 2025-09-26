@@ -115,7 +115,7 @@ jobs:
 
       - name: Restore updated files
         run: |
-          for csproj in $(find . -name '*.csproj'); do
+          for csproj in $(find ${{ inputs.src-path }} -name '*.csproj'); do
             project_name=$(basename "$csproj" .csproj);
             cp -r updated-projects/updated-$project_name/* "$(dirname "$csproj")"/;
           done
