@@ -88,11 +88,12 @@ jobs:
           working-directory: ${{ matrix.dir }}
           project-name: ${{ matrix.name }}
 
-      - name: Upload version files
+      - name: Upload updated sources
         uses: actions/upload-artifact@v4
         with:
-          name: repository
-          path: .
+          name: updated-${{ matrix.name }}
+          path: ${{ matrix.name }}
+
 
   build-test-and-pack:
     runs-on: ubuntu-latest
@@ -110,8 +111,14 @@ jobs:
       - name: Download version files
         uses: actions/download-artifact@v4
         with:
-          name: repository
-          path: .
+          path: updated-projects
+
+      - name: Restore updated files
+        run: |
+          for csproj in $(find . -name '*.csproj'); do
+            project_name=$(basename "$csproj" .csproj);
+            cp -r updated-projects/updated-$project_name/* "$(dirname "$csproj")"/;
+          done
 
       - name: Build and Test
         uses: sandre58/MyWorkflows/actions/build-and-test@main
