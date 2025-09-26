@@ -89,7 +89,7 @@ jobs:
           project-name: ${{ matrix.name }}
 
       - name: Upload version files
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: version-files
           path: .
@@ -108,7 +108,7 @@ jobs:
           ref: ${{ github.ref }}
 
       - name: Download version files
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: version-files
           path: ./downloaded-files
