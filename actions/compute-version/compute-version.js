@@ -26,7 +26,7 @@ if (branch === "main") {
 // 1️⃣ Check if we are on a project tag
 let currentTag = "";
 try {
-  currentTag = execSync("git describe --tags --exact-match").toString().trim();
+  currentTag = execSync("git describe --tags --exact-match", { stdio: ["pipe", "pipe", "ignore"] }).toString().trim();
 } catch {
   currentTag = "";
 }
@@ -56,7 +56,7 @@ const rawCommitsCmd = fromRef
 const rawCommits = execSync(rawCommitsCmd).toString().trim();
 
 if (!rawCommits) {
-    semver.inc(lastVersion, releaseType || "patch", suffix);
+    // No commits found, return current version without changes
     printResult(lastVersion, false);
 }
 
