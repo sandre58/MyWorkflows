@@ -15,10 +15,22 @@ inputs:
     description: 'Version of Nerdbank.GitVersioning package to install'
     required: false
     default: '3.8.106-alpha'
+  dotnet-versions:
+    description: "Versions of .NET to install"
+    required: false
+    default: |
+      10.0.x
+      9.0.x
+      8.0.x
 
 runs:
   using: 'composite'
   steps:
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ inputs.dotnet-versions }}
+
     - name: Add NBGV package to ${{ inputs.project-name }}
       shell: bash
       run: |

@@ -84,6 +84,7 @@ jobs:
       - name: Add NBGV package to ${{ matrix.name }}
         uses: sandre58/MyWorkflows/actions/add-nbgv-package@main
         with:
+          dotnet-versions: ${{ inputs.dotnet-versions }}
           working-directory: ${{ matrix.dir }}
           project-name: ${{ matrix.name }}
 
