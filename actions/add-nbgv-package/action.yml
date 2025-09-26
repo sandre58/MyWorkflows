@@ -1,0 +1,52 @@
+name: 'Add NBGV Package'
+description: 'Add Nerdbank.GitVersioning NuGet package to .NET projects'
+author: 'sandre58'
+
+inputs:
+  working-directory:
+    description: 'Directory containing the .csproj file'
+    required: false
+    default: '.'
+  project-name:
+    description: 'Project name for logging purposes'
+    required: false
+    default: 'project'
+  nbgv-version:
+    description: 'Version of Nerdbank.GitVersioning package to install'
+    required: false
+    default: '3.6.143'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Add NBGV package to ${{ inputs.project-name }}
+      shell: bash
+      run: |
+        project_name="${{ inputs.project-name }}"
+        working_dir="${{ inputs.working-directory }}"
+        nbgv_version="${{ inputs.nbgv-version }}"
+        
+        echo "Adding Nerdbank.GitVersioning package to project $project_name"
+        
+        # Navigate to project directory
+        cd "$working_dir"
+        
+        # Find the .csproj file
+        csproj_file=$(find . -maxdepth 1 -name "*.csproj" | head -1)
+        
+        if [[ -z "$csproj_file" ]]; then
+          echo "No .csproj file found in $working_dir"
+          exit 1
+        fi
+        
+        echo "Found project file: $csproj_file"
+        
+        # Check if NBGV package is already referenced
+        if grep -q "Nerdbank.GitVersioning" "$csproj_file"; then
+          echo "Nerdbank.GitVersioning package already referenced in $csproj_file"
+        else
+          echo "Adding Nerdbank.GitVersioning package to $csproj_file"
+          dotnet add "$csproj_file" package Nerdbank.GitVersioning --version "$nbgv_version"
+        fi
+        
+        echo "NBGV package setup completed for $project_name"
