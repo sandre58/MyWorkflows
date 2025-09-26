@@ -3,6 +3,10 @@ name: CI
 on:
   workflow_call:
     inputs:
+      src-path:
+        description: "Path to search for project files"
+        type: string
+        default: 'src'
       dotnet-versions:
         description: "Versions of .NET to install"
         type: string
@@ -15,6 +19,10 @@ on:
         type: string
         required: false
         default: '.runsettings'
+      compute-versions:
+        description: "Whether to compute versions automatically using semantic versioning"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -25,8 +33,116 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
 
 jobs:
+  discover-projects:
+    runs-on: ubuntu-latest
+    outputs:
+      projects: ${{ steps.find-projects.outputs.projects }}
+      projects-matrix: ${{ steps.find-projects.outputs.projects-matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref }}
+
+      - name: Find all projects
+        id: find-projects
+        shell: bash
+        run: |
+          echo "Searching for .csproj files in ${{ inputs.src-path }}..."
+          
+          # Find all .csproj files
+          projects=$(find ${{ inputs.src-path }} -name "*.csproj" -type f)
+          
+          if [[ -z "$projects" ]]; then
+            echo "No .csproj files found"
+            echo "projects=" >> $GITHUB_OUTPUT
+            echo "projects-matrix={\"include\":[]}" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Build JSON array for matrix strategy
+          matrix_json="{"
+          matrix_json+='"include":['
+          
+          project_list=""
+          first=true
+          
+          while IFS= read -r project_path; do
+            if [[ -n "$project_path" ]]; then
+              project_dir=$(dirname "$project_path")
+              project_name=$(basename "$project_path" .csproj)
+              
+              if [[ "$first" == true ]]; then
+                first=false
+              else
+                matrix_json+=","
+                project_list+=","
+              fi
+              
+              matrix_json+="{\"name\":\"$project_name\",\"path\":\"$project_path\",\"dir\":\"$project_dir\"}"
+              project_list+="$project_name"
+              
+              echo "Found project: $project_name at $project_path"
+            fi
+          done <<< "$projects"
+          
+          matrix_json+=']}'
+          
+          echo "projects=$project_list" >> $GITHUB_OUTPUT
+          echo "projects-matrix=$matrix_json" >> $GITHUB_OUTPUT
+          echo "Projects matrix: $matrix_json"
+
+  compute-versions:
+    runs-on: ubuntu-latest
+    needs: discover-projects
+    if: inputs.compute-versions == true && needs.discover-projects.outputs.projects != ''
+    strategy:
+      matrix: ${{ fromJson(needs.discover-projects.outputs.projects-matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Compute version for ${{ matrix.name }}
+        id: version
+        uses: sandre58/MyWorkflows/actions/compute-version@main
+        with:
+          project: ${{ matrix.name }}
+          working-directory: ${{ matrix.dir }}
+
+      - name: Install NBGV
+        run: dotnet tool install --global nbgv
+
+      - name: Set version for ${{ matrix.name }}
+        shell: bash
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          echo "Setting version $version for project ${{ matrix.name }}"
+          
+          # Navigate to project directory
+          cd "${{ matrix.dir }}"
+          
+          # Initialize or update version.json
+          if [[ ! -f "version.json" ]]; then
+            echo "Creating version.json..."
+            nbgv init
+          fi
+          
+          # Set the computed version
+          nbgv set-version "$version"
+          
+          echo "Version set successfully"
+
   build-test-and-pack:
     runs-on: ubuntu-latest
+    needs: [discover-projects, compute-versions]
+    if: always() && needs.discover-projects.result == 'success'
     outputs:
       packages-path: ${{ steps.pack.outputs.packages-path }}
       output-directory: ${{ steps.pack.outputs.output-directory }}

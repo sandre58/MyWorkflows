@@ -1,0 +1,67 @@
+name: "Compute Version"
+description: "Compute next version for a project using semantic versioning based on commit messages"
+inputs:
+  project:
+    description: "Project name to compute version for"
+    required: true
+  working-directory:
+    description: "Working directory for the repository"
+    required: false
+    default: '.'
+
+outputs:
+  version:
+    description: "Computed version"
+    value: ${{ steps.compute.outputs.version }}
+  changed:
+    description: "Whether the version has changed since last tag"
+    value: ${{ steps.compute.outputs.changed }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Copy compute version script
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        # Copy the script from the action directory
+        action_dir="${{ github.action_path }}"
+        cp "$action_dir/compute-version.js" ./compute-version.js
+        cp "$action_dir/package.json" ./package.json
+        chmod +x ./compute-version.js
+        chmod +x ./package.json
+
+    - name: Install dependencies
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: npm install
+
+    - name: Compute version
+      id: compute
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        # Run the version computation script
+        result=$(node compute-version.js "${{ inputs.project }}")
+        
+        # Parse JSON result
+        version=$(echo "$result" | jq -r '.version')
+        changed=$(echo "$result" | jq -r '.changed')
+        
+        echo "version=$version" >> $GITHUB_OUTPUT
+        echo "changed=$changed" >> $GITHUB_OUTPUT
+        
+        echo "Computed version: $version"
+        echo "Changed: $changed"
+
+    - name: Cleanup
+      shell: bash
+      if: always()
+      run: |
+        # Remove temporary files
+        rm -f ./compute-version.js
