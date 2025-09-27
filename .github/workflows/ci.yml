@@ -87,16 +87,19 @@ jobs:
           nuget_projects='${{ steps.find-nuget-projects.outputs.projects }}'
           app_projects='${{ steps.find-app-projects.outputs.projects }}'
           
-          # Handle empty or null projects
-          if [ "$nuget_projects" = "" ] || [ "$nuget_projects" = "null" ]; then
-            nuget_projects="[]"
+          # Merge project lists (comma-separated strings)
+          merged_projects=""
+          if [ -n "$nuget_projects" ] && [ "$nuget_projects" != "" ] && [ "$nuget_projects" != "null" ]; then
+            merged_projects="$nuget_projects"
           fi
-          if [ "$app_projects" = "" ] || [ "$app_projects" = "null" ]; then
-            app_projects="[]"
+          if [ -n "$app_projects" ] && [ "$app_projects" != "" ] && [ "$app_projects" != "null" ]; then
+            if [ -n "$merged_projects" ]; then
+              merged_projects="$merged_projects,$app_projects"
+            else
+              merged_projects="$app_projects"
+            fi
           fi
           
-          # Merge project lists
-          merged_projects=$(echo "$nuget_projects $app_projects" | jq -s 'add')
           echo "Merged projects: $merged_projects"
           echo "projects=$merged_projects" >> $GITHUB_OUTPUT
 
