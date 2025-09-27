@@ -177,25 +177,15 @@ jobs:
           path:  |
             ${{ matrix.dir }}
 
-  build-test-and-pack:
+  build-and-test:
     runs-on: windows-latest  # Changed to Windows to support WPF projects
-    needs: [discover-projects, set-versions]
+    needs: [discover-projects]
     if: always() && needs.discover-projects.result == 'success'
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           ref: ${{ github.ref }}
-
-      - name: Download version files
-        uses: actions/download-artifact@v4
-        with:
-          path: updated-projects
-
-      - name: Restore updated files
-        uses: sandre58/MyWorkflows/actions/restore-updated-files@main
-        with:
-          projects-matrix: ${{ needs.discover-projects.outputs.version-projects-matrix }}
 
       - name: Build and Test
         uses: sandre58/MyWorkflows/actions/build-and-test@main
@@ -211,8 +201,8 @@ jobs:
 
   pack-nugets:
     runs-on: windows-latest
-    needs: discover-projects
-    if: needs.discover-projects.outputs.nuget-projects-matrix != '{"include":[]}'
+    needs: ['discover-projects', 'set-versions', 'build-and-test']
+    if: always() && needs.build-and-test.result == 'success' && needs.discover-projects.outputs.nuget-projects-matrix != '{"include":[]}'
     strategy:
       matrix: ${{ fromJson(needs.discover-projects.outputs.nuget-projects-matrix) }}
     steps:
@@ -245,8 +235,8 @@ jobs:
 
   publish-apps:
     runs-on: windows-latest
-    needs: discover-projects
-    if: needs.discover-projects.outputs.app-projects-matrix != '{"include":[]}'
+    needs: ['discover-projects', 'set-versions', 'build-and-test']
+    if: always() && needs.build-and-test.result == 'success' && needs.discover-projects.outputs.app-projects-matrix != '{"include":[]}'
     strategy:
       matrix: ${{ fromJson(needs.discover-projects.outputs.app-projects-matrix) }}
     steps:
@@ -273,8 +263,8 @@ jobs:
 
   publish-reports:
     runs-on: ubuntu-latest
-    needs: build-test-and-pack
-    if: always() && needs.build-test-and-pack.result == 'success'
+    needs: build-and-test
+    if: always() && needs.build-and-test.result == 'success'
     steps:
       - uses: actions/checkout@v4
         with:
