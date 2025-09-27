@@ -18,6 +18,10 @@ on:
         type: string
         required: false
         default: 'published-apps'
+      app-target-framework:
+        description: "Target framework for app publish (e.g. net8.0, net6.0)"
+        type: string
+        required: false
       tests-path:
         description: "Path to search for test files"
         type: string
@@ -211,6 +215,7 @@ jobs:
           dotnet-versions: ${{ inputs.dotnet-versions }}
           project-path: ${{ matrix.path }}
           output-path: ${{ inputs.app-output }}/${{ matrix.name }}
+          framework: ${{ inputs.app-target-framework }}
 
   publish-reports:
     runs-on: ubuntu-latest

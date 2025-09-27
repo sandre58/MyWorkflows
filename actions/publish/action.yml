@@ -21,6 +21,9 @@ inputs:
       10.0.x
       9.0.x
       8.0.x
+  framework:
+    description: "Target framework for publish (e.g. net8.0, net6.0)"
+    required: false
   publish-args:
     description: "Additional arguments for dotnet publish command"
     required: false
@@ -41,6 +44,10 @@ runs:
 
         if [[ -n "${{ inputs.version }}" ]]; then
           publish_args="$publish_args -p:Version=${{ inputs.version }} -p:AssemblyVersion=${{ inputs.version }} -p:FileVersion=${{ inputs.version }}"
+        fi
+
+        if [[ -n "${{ inputs.framework }}" ]]; then
+          publish_args="$publish_args -f ${{ inputs.framework }}"
         fi
 
         if [[ -n "${{ inputs.publish-args }}" ]]; then
