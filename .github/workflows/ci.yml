@@ -124,7 +124,10 @@ jobs:
           # Merge matrices by combining the include arrays
           merged_matrix=$(echo "$nuget_matrix $app_matrix" | jq -s '{"include": (.[0].include + .[1].include)}')
           echo "Merged matrix: $merged_matrix"
-          echo "projects-matrix=$merged_matrix" >> $GITHUB_OUTPUT
+
+          # Compact the JSON to avoid formatting issues with GITHUB_OUTPUT
+          matrix_json_compact=$(echo "$merged_matrix" | jq -c .)
+          echo "projects-matrix=$matrix_json_compact" >> $GITHUB_OUTPUT
 
   set-versions:
     runs-on: ubuntu-latest
