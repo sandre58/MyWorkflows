@@ -3,6 +3,11 @@ name: Release
 on:
   workflow_call:
     inputs:
+      dry-run:
+        description: "If true, do not publish, just print what would be done."
+        type: boolean
+        required: false
+        default: false
       prerelease-keywords:
         description: "Keywords that indicate a prerelease version (pipe-separated)"
         type: string
@@ -177,11 +182,17 @@ jobs:
           path: packages
 
       - name: Publish stable release
+        if: inputs.dry-run != true
         uses: sandre58/MyWorkflows/actions/publish@main
         with:
           packages-path: packages/*.nupkg
           source-url: ${{ inputs.release-nuget-source }}
           api-key: ${{ secrets.RELEASE_API_KEY }}
+
+      - name: DRY_RUN stable release
+        if: inputs.dry-run == true
+        run: |
+          echo "[DRY_RUN] Would publish stable release to ${{ inputs.release-nuget-source }} with packages: packages/*.nupkg"
 
   publish-prerelease:
     runs-on: ubuntu-latest
@@ -200,11 +211,17 @@ jobs:
           path: packages
 
       - name: Publish prerelease
+        if: inputs.dry-run != true
         uses: sandre58/MyWorkflows/actions/publish@main
         with:
           packages-path: packages/*.nupkg
           source-url: ${{ inputs.prerelease-nuget-source }}
           api-key: ${{ secrets.PRERELEASE_API_KEY }}
+
+      - name: DRY_RUN prerelease
+        if: inputs.dry-run == true
+        run: |
+          echo "[DRY_RUN] Would publish prerelease to ${{ inputs.prerelease-nuget-source }} with packages: packages/*.nupkg"
 
   create-release:
     runs-on: ubuntu-latest

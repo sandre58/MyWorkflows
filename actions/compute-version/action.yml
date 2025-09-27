@@ -63,7 +63,7 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |
-        echo "## ${{ inputs.project }}" >> $GITHUB_STEP_SUMMARY
+        echo "### ${{ inputs.project }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Version**: ${{ steps.compute.outputs.version }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Changed**: ${{ steps.compute.outputs.changed }}" >> $GITHUB_STEP_SUMMARY
 
