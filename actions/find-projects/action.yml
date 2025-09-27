@@ -3,8 +3,8 @@ description: 'Discover .NET project files and create a matrix strategy for paral
 author: 'sandre58'
 
 inputs:
-  src-path:
-    description: 'Path to search for project files'
+  project-paths:
+    description: 'List of csproj files or folders (newline separated)'
     required: false
     default: 'src'
 
@@ -23,46 +23,60 @@ runs:
       id: find-projects
       shell: bash
       run: |
-        echo "Searching for .csproj files in ${{ inputs.src-path }}..."
-        
-        # Find all .csproj files
-        projects=$(find ${{ inputs.src-path }} -name "*.csproj" -type f)
-        
-        if [[ -z "$projects" ]]; then
+        echo "Searching for .csproj files in provided paths..."
+        all_projects=""
+        while IFS= read -r path; do
+          if [[ -z "$path" ]]; then
+            continue
+          fi
+          if [[ -f "$path" && "$path" == *.csproj ]]; then
+            all_projects+="$path\n"
+          elif [[ -d "$path" ]]; then
+            found=$(find "$path" -name "*.csproj" -type f)
+            if [[ -n "$found" ]]; then
+              all_projects+="$found\n"
+            fi
+          fi
+        done <<< "${{ inputs.project-paths }}"
+
+        # Remove empty lines
+        all_projects=$(echo -e "$all_projects" | grep -v '^$')
+
+        if [[ -z "$all_projects" ]]; then
           echo "No .csproj files found"
           echo "projects=" >> $GITHUB_OUTPUT
           echo "projects-matrix={\"include\":[]}" >> $GITHUB_OUTPUT
           exit 0
         fi
-        
+
         # Build JSON array for matrix strategy
         matrix_json="{"
         matrix_json+='"include":['
-        
+
         project_list=""
         first=true
-        
+
         while IFS= read -r project_path; do
           if [[ -n "$project_path" ]]; then
             project_dir=$(dirname "$project_path")
             project_name=$(basename "$project_path" .csproj)
-            
+
             if [[ "$first" == true ]]; then
               first=false
             else
-              matrix_json+=","
-              project_list+=","
+              matrix_json+=","'
+              project_list+=","'
             fi
-            
+
             matrix_json+="{\"name\":\"$project_name\",\"path\":\"$project_path\",\"dir\":\"$project_dir\"}"
             project_list+="$project_name"
-            
+
             echo "Found project: $project_name at $project_path"
           fi
-        done <<< "$projects"
-        
+        done <<< "$all_projects"
+
         matrix_json+=']}'
-        
+
         echo "projects=$project_list" >> $GITHUB_OUTPUT
         echo "projects-matrix=$matrix_json" >> $GITHUB_OUTPUT
         echo "Projects matrix: $matrix_json"

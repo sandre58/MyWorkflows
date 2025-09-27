@@ -1,9 +1,10 @@
 name: "Compute Version"
 description: "Compute next version for a project using semantic versioning based on commit messages"
 inputs:
-  project:
-    description: "Project name to compute version for"
-    required: true
+  tag-pattern:
+    description: "Pattern for tag name, e.g. v{version}"
+    required: false
+    default: 'v{version}'
   working-directory:
     description: "Working directory for the repository"
     required: false
@@ -47,7 +48,7 @@ runs:
       working-directory: ${{ inputs.working-directory }}
       run: |
         # Run the version computation script
-        result=$(node compute-version.js "${{ inputs.project }}")
+        result=$(node compute-version.js "." "${{ inputs.working-directory }}" "${{ inputs.tag-pattern }}")
         
         # Parse JSON result
         version=$(echo "$result" | jq -r '.version')
@@ -63,7 +64,8 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |
-        echo "### ${{ inputs.project }}" >> $GITHUB_STEP_SUMMARY
+        echo "### ${{ inputs.working-directory }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Tag pattern**: ${{ inputs.tag-pattern }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Version**: ${{ steps.compute.outputs.version }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Changed**: ${{ steps.compute.outputs.changed }}" >> $GITHUB_STEP_SUMMARY
 

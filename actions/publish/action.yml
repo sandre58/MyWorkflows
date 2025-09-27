@@ -1,39 +1,54 @@
-name: "Publish .NET Package"
-description: "Publish NuGet packages to a specified source"
+name: "Publish .NET App"
+description: "Publish a .NET application with specified configuration"
 inputs:
-  packages-path:
-    description: "Path to packages to publish (glob pattern)"
-    required: true
-  source-url:
-    description: "NuGet source URL for publishing"
-    required: true
-  api-key:
-    description: "API key or token for publishing"
-    required: true
-  skip-duplicate:
-    description: "Whether to skip duplicate packages"
+  output-path:
+    description: "Output directory for published files"
     required: false
-    default: 'true'
-  additional-args:
-    description: "Additional arguments for dotnet nuget push command"
+  project-path:
+    description: "Path to the project file (.csproj)"
+    required: true
+  version:
+    description: "Version to use for the publish"
     required: false
+  configuration:
+    description: "Publish configuration (Release, Debug, etc.)"
+    required: false
+    default: 'Release'
+  dotnet-versions:
+    description: "Versions of .NET to install"
+    required: false
+    default: |
+      10.0.x
+      9.0.x
+      8.0.x
+  publish-args:
+    description: "Additional arguments for dotnet publish command"
+    required: false
+    default: '--self-contained true --runtime win-x64 /p:PublishSingleFile=true /p:IncludeAllContentForSelfExtract=true /p:PublishTrimmed=true /p:PublishReadyToRun=false'
 
 runs:
   using: "composite"
   steps:
-    - name: Publish packages
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ inputs.dotnet-versions }}
+
+    - name: Publish
       shell: bash
       run: |
-        push_args="--api-key ${{ inputs.api-key }}"
-        push_args="$push_args --source ${{ inputs.source-url }}"
-        
-        if [[ "${{ inputs.skip-duplicate }}" == "true" ]]; then
-          push_args="$push_args --skip-duplicate"
+        publish_args="--configuration ${{ inputs.configuration }}"
+
+        if [[ -n "${{ inputs.version }}" ]]; then
+          publish_args="$publish_args -p:Version=${{ inputs.version }} -p:AssemblyVersion=${{ inputs.version }} -p:FileVersion=${{ inputs.version }}"
         fi
-        
-        if [[ -n "${{ inputs.additional-args }}" ]]; then
-          push_args="$push_args ${{ inputs.additional-args }}"
+
+        if [[ -n "${{ inputs.publish-args }}" ]]; then
+          publish_args="$publish_args ${{ inputs.publish-args }}"
         fi
-        
-        echo "Publishing packages to: ${{ inputs.source-url }}"
-        dotnet nuget push "${{ inputs.packages-path }}" $push_args
+
+        if [[ -n "${{ inputs.output-path }}" ]]; then
+          publish_args="$publish_args --output ${{ inputs.output-path }}"
+        fi
+
+        dotnet publish ${{ inputs.project-path }} $publish_args

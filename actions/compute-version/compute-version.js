@@ -3,10 +3,24 @@ import { execSync } from "child_process";
 import { analyzeCommits } from "@semantic-release/commit-analyzer";
 import semver from "semver";
 
-const project = process.argv[2];
-if (!project) {
-  console.error("Usage: node calc-version.js <project>");
-  process.exit(1);
+const workingDir = process.argv[2] || ".";
+const tagPattern = process.argv[3] || "v{version}";
+
+// Helper to extract version from tag using pattern
+function extractVersionFromTag(tag) {
+  // Convert pattern to regex, escaping special chars except placeholders
+  let regex = tagPattern
+    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // Escape special chars
+    .replace("\\{version\\}", "(\\d+\\.\\d+\\.\\d+(?:-[^\\s]+)?)");
+  
+  const match = tag.match(new RegExp(`^${regex}$`));
+  return match ? match[1] : null;
+}
+
+// Helper to create tag search pattern
+function createTagSearchPattern() {
+  return tagPattern
+    .replace("{version}", "*");
 }
 
 // Helper to print JSON and exit
@@ -23,36 +37,47 @@ if (branch === "main") {
     suffix = "beta";
 }
 
-// 1️⃣ Check if we are on a project tag
+// 1️⃣ Check if we are on a tag
 let currentTag = "";
 try {
   currentTag = execSync("git describe --tags --exact-match", { stdio: ["pipe", "pipe", "ignore"] }).toString().trim();
 } catch {
   currentTag = "";
 }
-if (currentTag.startsWith(`${project}/v`)) {
-  const tagVersion = currentTag.replace(`${project}/v`, "");
-  printResult(tagVersion, false);
+const currentVersion = extractVersionFromTag(currentTag);
+if (currentVersion) {
+  printResult(currentVersion, false);
 }
 
-// 1️⃣ Get the latest existing tag for the project
+// 2️⃣ Get the latest existing tag
 let lastTag = null;
+const searchPattern = createTagSearchPattern();
 try {
-  lastTag = execSync(`git describe --tags --match "${project}/v*" --abbrev=0`, {
+  const allTags = execSync(`git tag -l "${searchPattern}" --sort=-version:refname`, {
     stdio: ["pipe", "pipe", "ignore"],
   })
     .toString()
-    .trim();
+    .trim()
+    .split('\n')
+    .filter(tag => tag.trim());
+  
+  for (const tag of allTags) {
+    const version = extractVersionFromTag(tag.trim());
+    if (version) {
+      lastTag = tag.trim();
+      break;
+    }
+  }
 } catch {
   lastTag = null;
 }
-let lastVersion = lastTag ? lastTag.replace(`${project}/v`, "") : "0.0.0";
+let lastVersion = lastTag ? extractVersionFromTag(lastTag) : "0.0.0";
 
 // 3️⃣ Extract commits since last tag (or all history if no tag)
 const fromRef = lastTag ? `${lastTag}..HEAD` : "";
 const rawCommitsCmd = fromRef
-  ? `git log ${fromRef} --pretty=format:%s -- src/${project}/`
-  : `git log --pretty=format:%s -- src/${project}/`;
+  ? `git log ${fromRef} --pretty=format:%s -- ${workingDir}/`
+  : `git log --pretty=format:%s -- ${workingDir}/`;
 const rawCommits = execSync(rawCommitsCmd).toString().trim();
 
 if (!rawCommits) {

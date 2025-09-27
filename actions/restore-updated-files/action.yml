@@ -1,0 +1,35 @@
+name: "Restore Updated Files"
+description: "Restore updated files from artifacts based on project matrix"
+inputs:
+  projects-matrix:
+    description: "JSON matrix of version projects"
+    required: true
+  artifact-path:
+    description: "Path where artifacts were downloaded"
+    required: false
+    default: 'updated-projects'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Restore updated files from matrix
+      shell: bash
+      run: |
+        # Parse the version projects matrix to restore files
+        version_matrix='${{ inputs.projects-matrix }}'
+        if [[ "$version_matrix" != '{"include":[]}' ]] && [[ -n "$version_matrix" ]]; then
+          echo "$version_matrix" | jq -c '.include[]' | while read project; do
+            project_name=$(echo "$project" | jq -r '.name')
+            project_dir=$(echo "$project" | jq -r '.dir')
+            artifact_dir="${{ inputs.artifact-path }}/updated-$project_name"
+            
+            if [[ -d "$artifact_dir" ]]; then
+              echo "Restoring files for $project_name to $project_dir"
+              cp -r "$artifact_dir"/* "$project_dir"/
+            else
+              echo "No artifact found for $project_name at $artifact_dir"
+            fi
+          done
+        else
+          echo "No version projects to restore"
+        fi

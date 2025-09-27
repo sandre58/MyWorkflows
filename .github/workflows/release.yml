@@ -153,7 +153,7 @@ jobs:
 
       - name: Pack
         id: pack
-        uses: sandre58/MyWorkflows/actions/pack@main
+        uses: sandre58/MyWorkflows/actions/nuget-pack@main
         with:
           project-path: ${{ needs.discover.outputs.project-path }}
           version: ${{ needs.discover.outputs.version }}
@@ -183,7 +183,7 @@ jobs:
 
       - name: Publish stable release
         if: inputs.dry-run != true
-        uses: sandre58/MyWorkflows/actions/publish@main
+        uses: sandre58/MyWorkflows/actions/nuget-publish@main
         with:
           packages-path: packages/*.nupkg
           source-url: ${{ inputs.release-nuget-source }}
@@ -212,7 +212,7 @@ jobs:
 
       - name: Publish prerelease
         if: inputs.dry-run != true
-        uses: sandre58/MyWorkflows/actions/publish@main
+        uses: sandre58/MyWorkflows/actions/nuget-publish@main
         with:
           packages-path: packages/*.nupkg
           source-url: ${{ inputs.prerelease-nuget-source }}

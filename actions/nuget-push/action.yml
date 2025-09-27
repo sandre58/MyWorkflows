@@ -1,0 +1,39 @@
+name: "Publish .NET Package"
+description: "Publish NuGet packages to a specified source"
+inputs:
+  packages-path:
+    description: "Path to packages to publish (glob pattern)"
+    required: true
+  source-url:
+    description: "NuGet source URL for publishing"
+    required: true
+  api-key:
+    description: "API key or token for publishing"
+    required: true
+  skip-duplicate:
+    description: "Whether to skip duplicate packages"
+    required: false
+    default: 'true'
+  additional-args:
+    description: "Additional arguments for dotnet nuget push command"
+    required: false
+
+runs:
+  using: "composite"
+  steps:
+    - name: Publish packages
+      shell: bash
+      run: |
+        push_args="--api-key ${{ inputs.api-key }}"
+        push_args="$push_args --source ${{ inputs.source-url }}"
+        
+        if [[ "${{ inputs.skip-duplicate }}" == "true" ]]; then
+          push_args="$push_args --skip-duplicate"
+        fi
+        
+        if [[ -n "${{ inputs.additional-args }}" ]]; then
+          push_args="$push_args ${{ inputs.additional-args }}"
+        fi
+        
+        echo "Publishing packages to: ${{ inputs.source-url }}"
+        dotnet nuget push "${{ inputs.packages-path }}" $push_args
