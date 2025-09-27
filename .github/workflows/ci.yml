@@ -222,13 +222,16 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.ref }}
 
-      - name: Download test results
+      - name: Check if test results artifact exists
+        id: check-artifact
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           name: test-results
           path: ${{ inputs.tests-path }}
 
       - name: Publish Coverage Report
+        if: steps.check-artifact.outcome == 'success'
         uses: codecov/codecov-action@v4
         with:
           files: ${{ inputs.tests-path }}/**/*.cobertura.xml
@@ -236,6 +239,7 @@ jobs:
           verbose: true
 
       - name: Generate coverage report
+        if: steps.check-artifact.outcome == 'success'
         uses: danielpalme/ReportGenerator-GitHub-Action@v5
         with:
           reports: '${{ inputs.tests-path }}/**/*.cobertura.xml'
@@ -243,6 +247,7 @@ jobs:
           reporttypes: 'Html;MarkdownSummaryGithub'
 
       - name: Publish Test Results
+        if: steps.check-artifact.outcome == 'success'
         uses: EnricoMi/publish-unit-test-result-action@v2
         with:
           files: ${{ inputs.tests-path }}/**/*.trx
@@ -251,18 +256,20 @@ jobs:
           fail_on: 'test failures'
 
       - name: Publish Markdown Summary
+        if: steps.check-artifact.outcome == 'success'
         run: |
           echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
           cat coveragereport/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
 
       - name: Upload Coverage Reports
+        if: steps.check-artifact.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: coveragereport
 
       - name: Deploy documentation to GitHub Pages
-        if: github.ref == 'refs/heads/main'
+        if: steps.check-artifact.outcome == 'success' && github.ref == 'refs/heads/main'
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
