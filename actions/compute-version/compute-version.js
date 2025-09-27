@@ -12,6 +12,9 @@ function extractVersionFromTag(tag) {
   let regex = tagPattern
     .replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // Escape special chars
     .replace("\\{version\\}", "(\\d+\\.\\d+\\.\\d+(?:-[^\\s]+)?)");
+
+    console.error(tag);
+    console.error(regex);
   
   const match = tag.match(new RegExp(`^${regex}$`));
   return match ? match[1] : null;
