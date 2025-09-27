@@ -107,13 +107,19 @@ jobs:
           nuget_matrix='${{ steps.find-nuget-projects.outputs.projects-matrix }}'
           app_matrix='${{ steps.find-app-projects.outputs.projects-matrix }}'
 
-          # Handle empty or null matrices
-          if [ "$nuget_matrix" = "" ] || [ "$nuget_matrix" = "null" ]; then
+          echo "Raw nuget matrix: $nuget_matrix"
+          echo "Raw app matrix: $app_matrix"
+
+          # Handle empty or null matrices and validate JSON
+          if [ "$nuget_matrix" = "" ] || [ "$nuget_matrix" = "null" ] || ! echo "$nuget_matrix" | jq . >/dev/null 2>&1; then
             nuget_matrix='{"include":[]}'
           fi
-          if [ "$app_matrix" = "" ] || [ "$app_matrix" = "null" ]; then
+          if [ "$app_matrix" = "" ] || [ "$app_matrix" = "null" ] || ! echo "$app_matrix" | jq . >/dev/null 2>&1; then
             app_matrix='{"include":[]}'
           fi
+          
+          echo "Cleaned nuget matrix: $nuget_matrix"
+          echo "Cleaned app matrix: $app_matrix"
           
           # Merge matrices by combining the include arrays
           merged_matrix=$(echo "$nuget_matrix $app_matrix" | jq -s '{"include": (.[0].include + .[1].include)}')
@@ -172,9 +178,6 @@ jobs:
     runs-on: windows-latest  # Changed to Windows to support WPF projects
     needs: [discover-projects, set-versions]
     if: always() && needs.discover-projects.result == 'success'
-    outputs:
-      packages-path: ${{ steps.pack.outputs.packages-path }}
-      output-directory: ${{ steps.pack.outputs.output-directory }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -189,7 +192,7 @@ jobs:
       - name: Restore updated files
         uses: sandre58/MyWorkflows/actions/restore-updated-files@main
         with:
-          version-projects-matrix: ${{ needs.discover-projects.outputs.version-projects-matrix }}
+          projects-matrix: ${{ needs.discover-projects.outputs.version-projects-matrix }}
 
       - name: Build and Test
         uses: sandre58/MyWorkflows/actions/build-and-test@main
