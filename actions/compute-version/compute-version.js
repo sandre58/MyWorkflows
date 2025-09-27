@@ -10,12 +10,10 @@ const tagPattern = process.argv[3] || "v{version}";
 function extractVersionFromTag(tag) {
   // Convert pattern to regex, escaping special chars except placeholders
   let regex = tagPattern
-    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // Escape special chars
-    .replace("\\{version\\}", "(\\d+\\.\\d+\\.\\d+(?:-[^\\s]+)?)");
+    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // escape all special chars
+    .replace(/\\\{version\\\}/g, "{version}") // restore the placeholder
+    .replace("{version}", "(\\d+\\.\\d+\\.\\d+(?:-[^\\s]+)?)"); // inject the regex
 
-    console.error(tag);
-    console.error(regex);
-  
   const match = tag.match(new RegExp(`^${regex}$`));
   return match ? match[1] : null;
 }
