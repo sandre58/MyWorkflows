@@ -59,9 +59,19 @@ runs:
         echo "Computed version: $version"
         echo "Changed: $changed"
 
+    - name: Project Summary
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        echo "## ${{ inputs.project }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Version**: ${{ steps.compute.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Changed**: ${{ steps.compute.outputs.changed }}" >> $GITHUB_STEP_SUMMARY
+
     - name: Cleanup
       shell: bash
       if: always()
       run: |
         # Remove temporary files
         rm -f ./compute-version.js
+        rm -f ./package.json
+        rm -rf ./node_modules
