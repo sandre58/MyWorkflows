@@ -36,6 +36,8 @@ runs:
             if [[ -n "$found" ]]; then
               all_projects+="$found\n"
             fi
+          else
+            echo "Warning: Path '$path' does not exist or is not a valid .csproj file or directory" >&2
           fi
         done <<< "${{ inputs.project-paths }}"
 
@@ -64,8 +66,8 @@ runs:
             if [[ "$first" == true ]]; then
               first=false
             else
-              matrix_json+=","'
-              project_list+=","'
+              matrix_json+=","
+              project_list+=","
             fi
 
             matrix_json+="{\"name\":\"$project_name\",\"path\":\"$project_path\",\"dir\":\"$project_dir\"}"
