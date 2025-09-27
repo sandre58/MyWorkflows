@@ -72,6 +72,7 @@ runs:
     - name: Cleanup
       shell: bash
       if: always()
+      working-directory: ${{ inputs.working-directory }}
       run: |
         # Remove temporary files
         rm -f ./compute-version.js

@@ -164,6 +164,7 @@ jobs:
           ref: ${{ github.ref }}
 
       - name: Set version for ${{ matrix.name }}
+        id: version
         uses: sandre58/MyWorkflows/actions/set-project-version@main
         with:
           dotnet-versions: ${{ inputs.dotnet-versions }}
@@ -181,8 +182,8 @@ jobs:
       - name: Upload packages
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.name }}-nuget
-          path: ${{ steps.pack.outputs.output-directory }}/${{ matrix.name }}-*.nupkg
+          name: ${{ matrix.name }}.${{ steps.version.outputs.version }}
+          path: ${{ steps.pack.outputs.output-directory }}/${{ matrix.name }}.*.nupkg
 
   publish-apps:
     runs-on: windows-latest
