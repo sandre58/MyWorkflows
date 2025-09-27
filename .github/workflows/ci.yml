@@ -211,20 +211,19 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.ref }}
 
-      - name: Download version files
-        uses: actions/download-artifact@v4
+      - name: Set version for ${{ matrix.name }}
+        uses: sandre58/MyWorkflows/actions/set-project-version@main
         with:
-          path: updated-projects
-
-      - name: Restore updated files
-        uses: sandre58/MyWorkflows/actions/restore-updated-files@main
-        with:
-          projects-matrix: ${{ needs.discover-projects.outputs.nuget-projects-matrix }}
+          dotnet-versions: ${{ inputs.dotnet-versions }}
+          project-path: ${{ matrix.path }}
+          project-name: ${{ matrix.name }}
+          project-dir: ${{ matrix.dir }}
 
       - name: Pack ${{ matrix.name }}
         id: pack
         uses: sandre58/MyWorkflows/actions/nuget-pack@main
         with:
+          dotnet-versions: ${{ inputs.dotnet-versions }}
           project-path: ${{ matrix.path }}
 
       - name: Upload packages
@@ -245,19 +244,18 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.ref }}
 
-      - name: Download version files
-        uses: actions/download-artifact@v4
+      - name: Set version for ${{ matrix.name }}
+        uses: sandre58/MyWorkflows/actions/set-project-version@main
         with:
-          path: updated-projects
-
-      - name: Restore updated files
-        uses: sandre58/MyWorkflows/actions/restore-updated-files@main
-        with:
-          projects-matrix: ${{ needs.discover-projects.outputs.app-projects-matrix }}
+          dotnet-versions: ${{ inputs.dotnet-versions }}
+          project-path: ${{ matrix.path }}
+          project-name: ${{ matrix.name }}
+          project-dir: ${{ matrix.dir }}
 
       - name: Publish ${{ matrix.name }}
         uses: sandre58/MyWorkflows/actions/publish@main
         with:
+          dotnet-versions: ${{ inputs.dotnet-versions }}
           project-path: ${{ matrix.path }}
           output-path: ${{ inputs.app-output }}/${{ matrix.name }}
 

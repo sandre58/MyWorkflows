@@ -1,0 +1,65 @@
+name: 'Set Project Version'
+description: 'Set version for a single .NET project using semantic versioning and NBGV'
+author: 'sandre58'
+
+inputs:
+  project-path:
+    description: 'Path to the .csproj file'
+    required: true
+  project-name:
+    description: 'Name of the project'
+    required: true
+  project-dir:
+    description: 'Directory containing the project'
+    required: true
+  tag-pattern:
+    description: 'Pattern for tag names, e.g. {project}/v{version} or v{version}'
+    required: false
+    default: '{project}/v{version}'
+  dotnet-versions:
+    description: 'Versions of .NET to install'
+    required: false
+    default: |
+      10.0.x
+      9.0.x
+      8.0.x
+
+outputs:
+  version:
+    description: 'Computed version for the project'
+    value: ${{ steps.version.outputs.version }}
+  changed:
+    description: 'Whether the version has changed'
+    value: ${{ steps.version.outputs.changed }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Calculate tag pattern for ${{ inputs.project-name }}
+      id: calculate-tag-pattern
+      shell: bash
+      run: |
+        tag_pattern="${{ inputs.tag-pattern }}"
+        project_tag_pattern="${tag_pattern//\{project\}/${{ inputs.project-name }}}"
+        echo "tag-pattern=$project_tag_pattern" >> $GITHUB_OUTPUT
+
+    - name: Compute version for ${{ inputs.project-name }}
+      id: version
+      uses: sandre58/MyWorkflows/actions/compute-version@main
+      with:
+        tag-pattern: ${{ steps.calculate-tag-pattern.outputs.tag-pattern }}
+        working-directory: ${{ inputs.project-dir }}
+
+    - name: Set NBGV version for ${{ inputs.project-name }}
+      uses: sandre58/MyWorkflows/actions/set-nbgv-version@main
+      with:
+        version: ${{ steps.version.outputs.version }}
+        working-directory: ${{ inputs.project-dir }}
+        project-name: ${{ inputs.project-name }}
+
+    - name: Add NBGV package to ${{ inputs.project-name }}
+      uses: sandre58/MyWorkflows/actions/add-nbgv-package@main
+      with:
+        dotnet-versions: ${{ inputs.dotnet-versions }}
+        working-directory: ${{ inputs.project-dir }}
+        project-name: ${{ inputs.project-name }}

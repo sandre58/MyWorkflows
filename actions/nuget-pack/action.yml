@@ -21,6 +21,13 @@ inputs:
   pack-args:
     description: "Additional arguments for dotnet pack command"
     required: false
+  dotnet-versions:
+    description: "Versions of .NET to install"
+    required: false
+    default: |
+      10.0.x
+      9.0.x
+      8.0.x
 
 outputs:
   packages-path:
@@ -33,6 +40,11 @@ outputs:
 runs:
   using: "composite"
   steps:
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ inputs.dotnet-versions }}
+
     - name: Pack
       shell: bash
       run: |
