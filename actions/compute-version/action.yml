@@ -48,7 +48,7 @@ runs:
       working-directory: ${{ inputs.working-directory }}
       run: |
         # Run the version computation script
-        result=$(node compute-version.js "." "${{ inputs.working-directory }}" "${{ inputs.tag-pattern }}")
+        result=$(node compute-version.js "${{ inputs.working-directory }}" "${{ inputs.tag-pattern }}")
         
         # Parse JSON result
         version=$(echo "$result" | jq -r '.version')

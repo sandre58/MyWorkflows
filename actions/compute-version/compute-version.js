@@ -12,11 +12,11 @@ console.error("▶ Tag pattern:", tagPattern);
 // Helper to extract version from tag using pattern
 function extractVersionFromTag(tag) {
   let regex = tagPattern
-    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')       // échappe tout
-    .replace(/\\\{version\\\}/g, "{version}")     // remet {version}
-    .replace("{version}", "(\\d+\\.\\d+\\.\\d+(?:-[^\\s]+)?)"); // regex version
+    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')       // escape all special characters
+    .replace(/\\\{version\\\}/g, "{version}")     // restore {version}
+    .replace("{version}", "(\\d+\\.\\d+\\.\\d+(?:-[^\\s]+)?)"); // version regex
 
-  console.error("  ↳ Regex final pour extraction:", regex);
+  console.error("  ↳ Final regex for extraction:", regex);
 
   const match = tag.match(new RegExp(`^${regex}$`));
   return match ? match[1] : null;
@@ -34,24 +34,24 @@ function printResult(version, changed) {
 }
 
 const branch = execSync("git rev-parse --abbrev-ref HEAD").toString().trim();
-console.error("▶ Branch courante:", branch);
+console.error("▶ Current branch:", branch);
 
 let suffix = branch === "main" ? "pre" : "beta";
 
-// 1️⃣ Check si on est déjà sur un tag
+// 1️⃣ Check if we are already on a tag
 let currentTag = "";
 try {
   currentTag = execSync("git describe --tags --exact-match", { stdio: ["pipe", "pipe", "ignore"] }).toString().trim();
 } catch {}
-console.error("▶ Tag courant:", currentTag);
+console.error("▶ Current tag:", currentTag);
 
 const currentVersion = extractVersionFromTag(currentTag);
-console.error("▶ Version extraite du tag courant:", currentVersion);
+console.error("▶ Extracted version from current tag:", currentVersion);
 if (currentVersion) {
   printResult(currentVersion, false);
 }
 
-// 2️⃣ Chercher le dernier tag existant
+// 2️⃣ Find the latest existing tag
 let lastTag = null;
 const searchPattern = createTagSearchPattern();
 console.error("▶ SearchPattern git tag -l:", searchPattern);
