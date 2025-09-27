@@ -129,54 +129,6 @@ jobs:
           matrix_json_compact=$(echo "$merged_matrix" | jq -c .)
           echo "projects-matrix=$matrix_json_compact" >> $GITHUB_OUTPUT
 
-  set-versions:
-    runs-on: ubuntu-latest
-    needs: discover-projects
-    if: inputs.compute-versions == true
-    strategy:
-      matrix: ${{ fromJson(needs.discover-projects.outputs.version-projects-matrix) }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ github.ref }}
-
-      - name: Calculate tag pattern for ${{ matrix.name }}
-        id: calculate-tag-pattern
-        shell: bash
-        run: |
-          tag_pattern="${{ inputs.tag-pattern }}"
-          project_tag_pattern="${tag_pattern//\{project\}/${{ matrix.name }}}"
-          echo "tag-pattern=$project_tag_pattern" >> $GITHUB_OUTPUT
-
-      - name: Compute version for ${{ matrix.name }}
-        id: version
-        uses: sandre58/MyWorkflows/actions/compute-version@main
-        with:
-          tag-pattern: ${{ steps.calculate-tag-pattern.outputs.tag-pattern }}
-          working-directory: ${{ matrix.dir }}
-
-      - name: Set NBGV version for ${{ matrix.name }}
-        uses: sandre58/MyWorkflows/actions/set-nbgv-version@main
-        with:
-          version: ${{ steps.version.outputs.version }}
-          working-directory: ${{ matrix.dir }}
-          project-name: ${{ matrix.name }}
-
-      - name: Add NBGV package to ${{ matrix.name }}
-        uses: sandre58/MyWorkflows/actions/add-nbgv-package@main
-        with:
-          dotnet-versions: ${{ inputs.dotnet-versions }}
-          working-directory: ${{ matrix.dir }}
-          project-name: ${{ matrix.name }}
-
-      - name: Upload updated sources
-        uses: actions/upload-artifact@v4
-        with:
-          name: updated-${{ matrix.name }}
-          path:  |
-            ${{ matrix.dir }}
-
   build-and-test:
     runs-on: windows-latest  # Changed to Windows to support WPF projects
     needs: [discover-projects]
@@ -201,7 +153,7 @@ jobs:
 
   pack-nugets:
     runs-on: windows-latest
-    needs: ['discover-projects', 'set-versions', 'build-and-test']
+    needs: ['discover-projects', 'build-and-test']
     if: always() && needs.build-and-test.result == 'success' && needs.discover-projects.outputs.nuget-projects-matrix != '{"include":[]}'
     strategy:
       matrix: ${{ fromJson(needs.discover-projects.outputs.nuget-projects-matrix) }}
@@ -234,7 +186,7 @@ jobs:
 
   publish-apps:
     runs-on: windows-latest
-    needs: ['discover-projects', 'set-versions', 'build-and-test']
+    needs: ['discover-projects', 'build-and-test']
     if: always() && needs.build-and-test.result == 'success' && needs.discover-projects.outputs.app-projects-matrix != '{"include":[]}'
     strategy:
       matrix: ${{ fromJson(needs.discover-projects.outputs.app-projects-matrix) }}
