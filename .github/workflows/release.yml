@@ -128,7 +128,7 @@ jobs:
           echo "changelog-path=$changelog_path" >> $GITHUB_OUTPUT
 
   build-test-and-pack:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     needs: discover
     outputs:
       packages-path: ${{ steps.pack.outputs.packages-path }}
