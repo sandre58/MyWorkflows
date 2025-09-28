@@ -47,8 +47,6 @@ on:
       PRERELEASE_API_KEY:
         description: "API key for publishing prereleases"
         required: true
-      GITHUB_TOKEN:
-        required: true
 
 permissions:
   contents: write
