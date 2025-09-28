@@ -4,6 +4,7 @@ inputs:
   output-path:
     description: "Output directory for published files"
     required: false
+    default: 'apps'
   project-path:
     description: "Path to the project file (.csproj)"
     required: true
@@ -28,6 +29,12 @@ inputs:
     description: "Additional arguments for dotnet publish command"
     required: false
     default: '--self-contained true --runtime win-x64 -p:PublishSingleFile=true'
+
+
+outputs:
+  output-directory:
+    description: "Output directory containing app files"
+    value: ${{ inputs.output-path }}
 
 runs:
   using: "composite"

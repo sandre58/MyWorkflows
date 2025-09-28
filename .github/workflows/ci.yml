@@ -17,7 +17,7 @@ on:
         description: "Output directory for published apps"
         type: string
         required: false
-        default: 'published-apps'
+        default: 'apps'
       max-depth:
         description: "Maximum search depth for finding projects (empty = all subfolders)"
         type: string
@@ -221,6 +221,7 @@ jobs:
           ref: ${{ github.ref }}
 
       - name: Set version for ${{ matrix.name }}
+        id: version
         uses: sandre58/MyWorkflows/actions/set-project-version@main
         with:
           dotnet-versions: ${{ inputs.dotnet-versions }}
@@ -229,12 +230,19 @@ jobs:
           project-dir: ${{ matrix.dir }}
 
       - name: Publish ${{ matrix.name }}
+        id: publish
         uses: sandre58/MyWorkflows/actions/publish@main
         with:
           dotnet-versions: ${{ inputs.dotnet-versions }}
           project-path: ${{ matrix.path }}
-          output-path: ${{ inputs.app-output }}/${{ matrix.name }}
+          output-path: "app/${{ matrix.name }}"
           framework: ${{ inputs.app-target-framework }}
+
+      - name: Upload apps
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}.${{ steps.version.outputs.version }}
+          path: ${{ steps.publish.outputs.output-directory }}/${{ matrix.name }}
 
   publish-reports:
     runs-on: ubuntu-latest
