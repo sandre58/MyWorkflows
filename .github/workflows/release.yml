@@ -23,10 +23,6 @@ on:
         description: "Whether to enable changelog generation"
         type: boolean
         default: true
-      src-path:
-        description: "Path to search for project files"
-        type: string
-        default: 'src'
       runsettings-file:
         description: "Path to .runsettings file for test configuration"
         type: string
@@ -94,7 +90,7 @@ jobs:
           project_name="${{ steps.parse.outputs.project-name }}"
           
           if [[ -n "$project_name" ]]; then
-            project_path=$(find ${{ inputs.src-path }} -name "$project_name.csproj" -type f | head -n1)
+            project_path=$(find "." -name "$project_name.csproj" -type f | head -n1)
             if [[ -n "$project_path" ]]; then
               project_dir=$(dirname "$project_path")
               echo "Found project: $project_path"
@@ -183,7 +179,7 @@ jobs:
 
       - name: Publish stable release
         if: inputs.dry-run != true
-        uses: sandre58/MyWorkflows/actions/nuget-publish@main
+        uses: sandre58/MyWorkflows/actions/nuget-push@main
         with:
           packages-path: packages/*.nupkg
           source-url: ${{ inputs.release-nuget-source }}
@@ -212,7 +208,7 @@ jobs:
 
       - name: Publish prerelease
         if: inputs.dry-run != true
-        uses: sandre58/MyWorkflows/actions/nuget-publish@main
+        uses: sandre58/MyWorkflows/actions/nuget-push@main
         with:
           packages-path: packages/*.nupkg
           source-url: ${{ inputs.prerelease-nuget-source }}
