@@ -37,10 +37,13 @@ This file is generated automatically based on commit history and tags.
 {{ end }}
 {{ end }}
 
-{{ if .NoteGroups }}
-### ⚠️ Notes
-{{ range .NoteGroups }}
+{{ if .NoteGroups -}}
+{{ range .NoteGroups -}}
+// breaking changes or notes
+### ⚠️ {{ .Title }}
+{{ range .Notes }}
 - {{ .Body }}
+{{ end }}
 {{ end }}
 {{ end }}
 
