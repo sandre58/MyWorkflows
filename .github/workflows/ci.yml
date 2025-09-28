@@ -66,6 +66,8 @@ jobs:
       version-projects-matrix: ${{ steps.find-projects.outputs.projects-matrix }}
       nuget-projects-matrix: ${{ steps.find-nuget-projects.outputs.projects-matrix }}
       app-projects-matrix: ${{ steps.find-app-projects.outputs.projects-matrix }}
+    outputs:
+      has-test-results: ${{ steps.check_test_results.outputs.found }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -137,6 +139,8 @@ jobs:
     runs-on: windows-latest  # Changed to Windows to support WPF projects
     needs: [discover-projects]
     if: always() && needs.discover-projects.result == 'success'
+    outputs:
+      has-test-results: ${{ steps.check_test_results.outputs.found }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -149,7 +153,18 @@ jobs:
           dotnet-versions: ${{ inputs.dotnet-versions }}
           runsettings-file: ${{ inputs.runsettings-file }}
 
+      - name: Check for test result files
+        id: check_test_results
+        shell: bash
+        run: |
+          if compgen -G "${{ inputs.tests-path }}/**/*" > /dev/null; then
+            echo "found=true" >> $GITHUB_OUTPUT
+          else
+            echo "found=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Upload test results
+        if: steps.check_test_results.outputs.found == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: test-results
@@ -220,7 +235,7 @@ jobs:
   publish-reports:
     runs-on: ubuntu-latest
     needs: build-and-test
-    if: always() && needs.build-and-test.result == 'success'
+    if: always() && needs.build-and-test.result == 'success' && needs.build-and-test.outputs.has-test-results == 'true'
     steps:
       - uses: actions/checkout@v4
         with:
