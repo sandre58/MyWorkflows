@@ -66,8 +66,6 @@ jobs:
       version-projects-matrix: ${{ steps.find-projects.outputs.projects-matrix }}
       nuget-projects-matrix: ${{ steps.find-nuget-projects.outputs.projects-matrix }}
       app-projects-matrix: ${{ steps.find-app-projects.outputs.projects-matrix }}
-    outputs:
-      has-test-results: ${{ steps.check_test_results.outputs.found }}
     steps:
       - uses: actions/checkout@v4
         with:
