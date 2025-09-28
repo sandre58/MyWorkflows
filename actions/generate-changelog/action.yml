@@ -58,13 +58,13 @@ runs:
           
           if [[ "${{ inputs.git-chglog-version }}" == "latest" ]]; then
             # Get latest version from GitHub API
-            VERSION=$(curl -s https://api.github.com/repos/git-chglog/git-chglog/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+                  VERSION=$(curl -s https://api.github.com/repos/git-chglog/git-chglog/releases/latest | grep '"tag_name":' | sed -E 's/.*"v?([0-9]+\.[0-9]+\.[0-9]+)".*/\1/')
           else
             VERSION="${{ inputs.git-chglog-version }}"
           fi
           
           # Download and install
-          DOWNLOAD_URL="https://github.com/git-chglog/git-chglog/releases/download/${VERSION}/git-chglog_${VERSION}_${OS}_${ARCH}.tar.gz"
+          DOWNLOAD_URL="https://github.com/git-chglog/git-chglog/releases/download/v${VERSION}/git-chglog_${VERSION}_${OS}_${ARCH}.tar.gz"
           
           echo "Downloading git-chglog from: $DOWNLOAD_URL"
           curl -sL "$DOWNLOAD_URL" | tar xz
