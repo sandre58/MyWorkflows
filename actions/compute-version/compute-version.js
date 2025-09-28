@@ -80,7 +80,7 @@ console.error("⚠️ Error during git tag -l:", e);
   lastTag = null;
 }
 
-let lastVersion = lastTag ? extractVersionFromTag(lastTag) : "0.0.0";
+let lastVersion = lastTag ? extractVersionFromTag(lastTag) : "1.0.0";
 console.error("▶ Last selected tag:", lastTag);
 console.error("▶ Extracted version from last tag:", lastVersion);
 

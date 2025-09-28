@@ -7,6 +7,9 @@ inputs:
     description: 'List of csproj files or folders (newline separated)'
     required: false
     default: 'src'
+  max-depth:
+    description: 'Maximum search depth for finding projects (empty = all subfolders)'
+    required: false
 
 outputs:
   projects:
@@ -41,7 +44,11 @@ runs:
           if [[ -f "$path" && "$path" == *.csproj ]]; then
             all_projects+="$path\n"
           elif [[ -d "$path" ]]; then
-            found=$(find "$path" -name "*.csproj" -type f)
+            if [[ -n "${{ inputs.max-depth }}" ]]; then
+              found=$(find "$path" -maxdepth ${{ inputs.max-depth }} -name "*.csproj" -type f)
+            else
+              found=$(find "$path" -name "*.csproj" -type f)
+            fi
             if [[ -n "$found" ]]; then
               all_projects+="$found\n"
             fi

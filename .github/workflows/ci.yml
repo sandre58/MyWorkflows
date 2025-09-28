@@ -18,6 +18,10 @@ on:
         type: string
         required: false
         default: 'published-apps'
+      max-depth:
+        description: "Maximum search depth for finding projects (empty = all subfolders)"
+        type: string
+        required: false
       app-target-framework:
         description: "Target framework for app publish (e.g. net8.0, net6.0)"
         type: string
@@ -77,12 +81,14 @@ jobs:
         uses: sandre58/MyWorkflows/actions/find-projects@main
         with:
           project-paths: ${{ inputs.nuget-projects }}
+          max-depth: ${{ inputs.max-depth }}
 
       - name: Find all app projects
         id: find-app-projects
         uses: sandre58/MyWorkflows/actions/find-projects@main
         with:
-            project-paths: ${{ inputs.app-projects }}
+          project-paths: ${{ inputs.app-projects }}
+          max-depth: ${{ inputs.max-depth }}
 
       - name: Merge nuget and app projects
         id: find-projects
