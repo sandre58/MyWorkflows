@@ -18,6 +18,10 @@ inputs:
     description: "Path to git-chglog configuration file"
     required: false
     default: '.chglog/config.yml'
+  template-file:
+    description: "Path to git-chglog template file"
+    required: false
+    default: '.chglog/templates/CHANGELOG.tpl.md'
   repository-url:
     description: "Repository URL for links (auto-detected if not provided)"
     required: false
@@ -93,16 +97,20 @@ runs:
           
           if [[ -f "$config_template" ]]; then
             # Replace repository URL placeholder
+            template_filename="$(basename "${{ inputs.template-file }}")"
             repo_url="${{ inputs.repository-url || github.server_url }}/${{ github.repository }}"
             sed "s|{{ .Info.Title }}|${{ inputs.title }}|g" "$config_template" > "${{ inputs.config-file }}"
             sed "s|{{ .Info.RepositoryURL }}|$repo_url|g" "${{ inputs.config-file }}" > "${{ inputs.config-file }}"
+            sed "s|{{ .Info.TemplateFile }}|$template_filename|g" "${{ inputs.config-file }}" > "${{ inputs.config-file }}"
           fi
 
-          # Create default template
-          template_file="$action_dir/templates/CHANGELOG.tpl.md"
-          config_dir="$(dirname "${{ inputs.config-file }}")"
-          if [[ -f "$template_file" ]]; then
-            cp "$template_file" "$config_dir/CHANGELOG.tpl.md"
+          if [[ ! -f "${{ inputs.template-file }}" ]]; then
+            # Create default template
+            template_filename="$(basename "${{ inputs.template-file }}")"
+            template_file="$action_dir/templates/$template_filename"
+            if [[ -f "$template_file" ]]; then
+              cp "$template_file" "${{ inputs.template-file }}"
+            fi
           fi
           
           echo "Default git-chglog template created"

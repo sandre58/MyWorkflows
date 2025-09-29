@@ -1,5 +1,5 @@
 style: github
-template: CHANGELOG.tpl.md
+template: {{ .Info.TemplateFile }}
 info:
   title: {{ .Info.Title }}
   repository_url: {{ .Info.RepositoryURL }}

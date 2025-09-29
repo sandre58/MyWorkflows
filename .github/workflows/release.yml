@@ -248,6 +248,7 @@ jobs:
           tag: ${{ steps.tag-range.outputs.tag-range }}
           repository-url: ${{ github.server_url }}/${{ github.repository }}
           title: ${{ needs.discover.outputs.project-name || github.repository }}
+          template-file: ".chglog/templates/RELEASE.tpl.md"
 
       - name: Generate Full Changelog
         if: inputs.changelog-enabled == true
@@ -257,6 +258,7 @@ jobs:
           repository-url: ${{ github.server_url }}/${{ github.repository }}
           title: ${{ needs.discover.outputs.project-name || github.repository }}
           output-file: ${{ needs.discover.outputs.changelog-path }}
+          template-file: ".chglog/templates/CHANGELOG.tpl.md"
 
       - name: Commit and push changelog
         if: inputs.changelog-enabled == true
