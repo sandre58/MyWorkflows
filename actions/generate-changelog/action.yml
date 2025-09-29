@@ -21,7 +21,7 @@ inputs:
   template-file:
     description: "Path to git-chglog template file"
     required: false
-    default: '.chglog/templates/CHANGELOG.tpl.md'
+    default: '.chglog/CHANGELOG.tpl.md'
   repository-url:
     description: "Repository URL for links (auto-detected if not provided)"
     required: false
