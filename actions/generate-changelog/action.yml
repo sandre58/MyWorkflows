@@ -108,8 +108,9 @@ runs:
             # Create default template
             template_filename="$(basename "${{ inputs.template-file }}")"
             template_file="$action_dir/templates/$template_filename"
+            template_dir="$(dirname "${{ inputs.template-file }}")"
             if [[ -f "$template_file" ]]; then
-              cp "$template_file" "${{ inputs.template-file }}"
+              cp -p "$template_file" "$template_dir"
             fi
           fi
           
