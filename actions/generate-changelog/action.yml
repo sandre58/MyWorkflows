@@ -87,37 +87,52 @@ runs:
     - name: Initialize git-chglog config (if not exists)
       shell: bash
       run: |
+        echo "[git-chglog] Checking if config file exists: ${{ inputs.config-file }}"
         if [[ ! -f "${{ inputs.config-file }}" ]]; then
-          echo "Creating default git-chglog configuration..."
-          mkdir -p "$(dirname "${{ inputs.config-file }}")"
-          
+          echo "[git-chglog] Creating default git-chglog configuration..."
+          mkdir -p "$(dirname \"${{ inputs.config-file }}\")"
+          echo "[git-chglog] Created config directory: $(dirname \"${{ inputs.config-file }}\")"
+
           # Copy default config and substitute repository URL
           action_dir="${{ github.action_path }}"
           config_template="$action_dir/templates/default-config.yml"
-          
+          echo "[git-chglog] Using config template: $config_template"
+
           if [[ -f "$config_template" ]]; then
             # Replace repository URL placeholder
-            template_filename="$(basename "${{ inputs.template-file }}")"
+            template_filename="$(basename \"${{ inputs.template-file }}\")"
             repo_url="${{ inputs.repository-url || github.server_url }}/${{ github.repository }}"
+            echo "[git-chglog] Substituting title: ${{ inputs.title }}"
+            echo "[git-chglog] Substituting repo_url: $repo_url"
+            echo "[git-chglog] Substituting template_filename: $template_filename"
             sed "s|{{ .Info.Title }}|${{ inputs.title }}|g" "$config_template" > "${{ inputs.config-file }}"
             sed "s|{{ .Info.RepositoryURL }}|$repo_url|g" "${{ inputs.config-file }}" > "${{ inputs.config-file }}"
             sed "s|{{ .Info.TemplateFile }}|$template_filename|g" "${{ inputs.config-file }}" > "${{ inputs.config-file }}"
+            echo "[git-chglog] Config file created: ${{ inputs.config-file }}"
+          else
+            echo "[git-chglog] Config template not found: $config_template"
           fi
-
-          cat "${{ inputs.config-file }}"
 
           if [[ ! -f "${{ inputs.template-file }}" ]]; then
             # Create default template
-            template_filename="$(basename "${{ inputs.template-file }}")"
+            template_filename="$(basename \"${{ inputs.template-file }}\")"
             template_file="$action_dir/templates/$template_filename"
-            template_dir="$(dirname "${{ inputs.template-file }}")"
-            echo "Creating default template at: $template_dir/$template_filename"
+            template_dir="$(dirname \"${{ inputs.template-file }}\")"
+            echo "[git-chglog] Checking for template file: $template_file"
             if [[ -f "$template_file" ]]; then
+              echo "[git-chglog] Copying template file to: $template_dir"
               cp -p "$template_file" "$template_dir"
+              echo "[git-chglog] Template file copied: $template_dir/$template_filename"
+            else
+              echo "[git-chglog] Template file not found: $template_file"
             fi
+          else
+            echo "[git-chglog] Template file already exists: ${{ inputs.template-file }}"
           fi
-          
-          echo "Default git-chglog template created"
+
+          echo "[git-chglog] Default git-chglog template created"
+        else
+          echo "[git-chglog] Config file already exists: ${{ inputs.config-file }}"
         fi
 
     - name: Generate changelog
