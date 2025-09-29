@@ -104,11 +104,14 @@ runs:
             sed "s|{{ .Info.TemplateFile }}|$template_filename|g" "${{ inputs.config-file }}" > "${{ inputs.config-file }}"
           fi
 
+          cat "${{ inputs.config-file }}"
+
           if [[ ! -f "${{ inputs.template-file }}" ]]; then
             # Create default template
             template_filename="$(basename "${{ inputs.template-file }}")"
             template_file="$action_dir/templates/$template_filename"
             template_dir="$(dirname "${{ inputs.template-file }}")"
+            echo "Creating default template at: $template_dir/$template_filename"
             if [[ -f "$template_file" ]]; then
               cp -p "$template_file" "$template_dir"
             fi
