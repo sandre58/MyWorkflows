@@ -120,6 +120,8 @@ runs:
             template_file="$action_dir/templates/$template_filename"
             template_dir="$(dirname \"${{ inputs.template-file }}\")"
             echo "[git-chglog] Checking for template file: $template_file"
+            echo "[git-chglog] Creating template directory: $template_dir"
+            mkdir -p "$template_dir"
             if [[ -f "$template_file" ]]; then
               echo "[git-chglog] Copying template file to: $template_dir"
               cp -p "$template_file" "$template_dir"
