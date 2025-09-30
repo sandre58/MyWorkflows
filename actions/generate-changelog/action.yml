@@ -105,9 +105,10 @@ runs:
             echo "[git-chglog] Substituting title: ${{ inputs.title }}"
             echo "[git-chglog] Substituting repo_url: $repo_url"
             echo "[git-chglog] Substituting template_filename: $template_filename"
-            sed "s|{{ .Info.Title }}|${{ inputs.title }}|g" "$config_template" > "${{ inputs.config-file }}"
-            sed "s|{{ .Info.RepositoryURL }}|$repo_url|g" "${{ inputs.config-file }}" > "${{ inputs.config-file }}"
-            sed "s|{{ .Info.TemplateFile }}|$template_filename|g" "${{ inputs.config-file }}" > "${{ inputs.config-file }}"
+            sed -e "s|{{ .Info.Title }}|${{ inputs.title }}|g" \
+                -e "s|{{ .Info.RepositoryURL }}|$repo_url|g" \
+                -e "s|{{ .Info.TemplateFile }}|$template_filename|g" \
+                "$config_template" > "${{ inputs.config-file }}"
             echo "[git-chglog] Config file created: ${{ inputs.config-file }}"
           else
             echo "[git-chglog] Config template not found: $config_template"
