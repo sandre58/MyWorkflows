@@ -101,10 +101,17 @@ runs:
           if [[ -f "$config_template" ]]; then
             # Replace repository URL placeholder
             template_filename="$(basename \"${{ inputs.template-file }}\")"
-            repo_url="${{ inputs.repository-url || github.server_url }}/${{ github.repository }}"
+            repo_url="${{ inputs.repository-url }}"
+            if [[ -z "$repo_url" ]]; then
+              repo_url="${{ github.server_url }}/${{ github.repository }}"
+            fi
             echo "[git-chglog] Substituting title: ${{ inputs.title }}"
             echo "[git-chglog] Substituting repo_url: $repo_url"
             echo "[git-chglog] Substituting template_filename: $template_filename"
+            
+            # Ensure config file directory exists
+            mkdir -p "$(dirname \"${{ inputs.config-file }}\")"
+            
             sed -e "s|{{ .Info.Title }}|${{ inputs.title }}|g" \
                 -e "s|{{ .Info.RepositoryURL }}|$repo_url|g" \
                 -e "s|{{ .Info.TemplateFile }}|$template_filename|g" \
