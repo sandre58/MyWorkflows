@@ -90,8 +90,9 @@ runs:
         echo "[git-chglog] Checking if config file exists: ${{ inputs.config-file }}"
         if [[ ! -f "${{ inputs.config-file }}" ]]; then
           echo "[git-chglog] Creating default git-chglog configuration..."
-          mkdir -p "$(dirname \"${{ inputs.config-file }}\")"
-          echo "[git-chglog] Created config directory: $(dirname \"${{ inputs.config-file }}\")"
+          config_dir="$(dirname "${{ inputs.config-file }}")"
+          mkdir -p "$config_dir"
+          echo "[git-chglog] Created config directory: $config_dir"
 
           # Copy default config and substitute repository URL
           action_dir="${{ github.action_path }}"
@@ -108,9 +109,6 @@ runs:
             echo "[git-chglog] Substituting title: ${{ inputs.title }}"
             echo "[git-chglog] Substituting repo_url: $repo_url"
             echo "[git-chglog] Substituting template_filename: $template_filename"
-            
-            # Ensure config file directory exists
-            mkdir -p "$(dirname \"${{ inputs.config-file }}\")"
             
             sed -e "s|{{ .Info.Title }}|${{ inputs.title }}|g" \
                 -e "s|{{ .Info.RepositoryURL }}|$repo_url|g" \
