@@ -101,7 +101,7 @@ runs:
 
           if [[ -f "$config_template" ]]; then
             # Replace repository URL placeholder
-            template_filename="$(basename \"${{ inputs.template-file }}\")"
+            template_filename="$(basename "${{ inputs.template-file }}")"
             repo_url="${{ inputs.repository-url }}"
             if [[ -z "$repo_url" ]]; then
               repo_url="${{ github.server_url }}/${{ github.repository }}"
@@ -121,9 +121,9 @@ runs:
 
           if [[ ! -f "${{ inputs.template-file }}" ]]; then
             # Create default template
-            template_filename="$(basename \"${{ inputs.template-file }}\")"
+            template_filename="$(basename "${{ inputs.template-file }}")"
             template_file="$action_dir/templates/$template_filename"
-            template_dir="$(dirname \"${{ inputs.template-file }}\")"
+            template_dir="$(dirname "${{ inputs.template-file }}")"
             echo "[git-chglog] Checking for template file: $template_file"
             echo "[git-chglog] Creating template directory: $template_dir"
             mkdir -p "$template_dir"
