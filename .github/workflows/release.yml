@@ -133,7 +133,7 @@ jobs:
       - name: Detect project type
         id: detect-type
         if: steps.find-project.outputs.project-path != ''
-        uses: ./actions/detect-project-type
+        uses: sandre58/MyWorkflows/actions/detect-project-type@main
         with:
           project-path: ${{ steps.find-project.outputs.project-path }}
 
