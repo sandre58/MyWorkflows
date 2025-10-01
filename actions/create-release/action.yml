@@ -33,18 +33,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: release-artifacts
-        path: ${{ inputs.artifacts-path }}/*.nupkg
-
-    - name: Download artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: release-artifacts
-        path: release-artifacts
-
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
       env:
@@ -55,4 +43,4 @@ runs:
         body: ${{ inputs.release-body }}
         draft: ${{ inputs.draft == 'true' }}
         prerelease: ${{ inputs.is-prerelease == 'true' }}
-        files: release-artifacts/*.nupkg
+        files: ${{ inputs.artifacts-path }}

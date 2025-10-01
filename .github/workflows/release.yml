@@ -67,6 +67,11 @@ jobs:
       tag: ${{ github.ref_name }}
       is-prerelease: ${{ steps.parse.outputs.is-prerelease }}
       changelog-path: ${{ steps.calculate-paths.outputs.changelog-path }}
+      project-type: ${{ steps.detect-type.outputs.project-type }}
+      is-packable: ${{ steps.detect-type.outputs.is-packable }}
+      is-publishable: ${{ steps.detect-type.outputs.is-publishable }}
+      output-type: ${{ steps.detect-type.outputs.output-type }}
+      target-framework: ${{ steps.detect-type.outputs.target-framework }}
 
     steps:
       - uses: actions/checkout@v4
@@ -125,6 +130,13 @@ jobs:
           
           echo "changelog-path=$changelog_path" >> $GITHUB_OUTPUT
 
+      - name: Detect project type
+        id: detect-type
+        if: steps.find-project.outputs.project-path != ''
+        uses: ./actions/detect-project-type
+        with:
+          project-path: ${{ steps.find-project.outputs.project-path }}
+
   build-test-and-pack:
     runs-on: windows-latest
     needs: discover
@@ -148,21 +160,41 @@ jobs:
       - name: Pack
         id: pack
         uses: sandre58/MyWorkflows/actions/nuget-pack@main
+        if: needs.discover.outputs.is-packable == 'true'
         with:
           project-path: ${{ needs.discover.outputs.project-path }}
           version: ${{ needs.discover.outputs.version }}
           pack-args: "--no-build"
 
+      - name: Publish
+        id: publish
+        uses: sandre58/MyWorkflows/actions/publish@main
+        if: needs.discover.outputs.is-publishable == 'true'
+        with:
+          project-path: ${{ needs.discover.outputs.project-path }}
+          version: ${{ needs.discover.outputs.version }}
+          publish-args: "--no-build"
+          dotnet-versions: ${{ inputs.dotnet-versions }}
+          framework: ${{ needs.discover.outputs.target-framework }}
+
       - name: Upload packages
         uses: actions/upload-artifact@v4
+        if: needs.discover.outputs.is-packable == 'true'
         with:
           name: nuget-packages
           path: ${{ steps.pack.outputs.output-directory }}/*.nupkg
 
+      - name: Upload App
+        uses: actions/upload-artifact@v4
+        if: needs.discover.outputs.is-publishable == 'true'
+        with:
+          name: apps
+          path: "apps"
+
   publish-release:
     runs-on: ubuntu-latest
     needs: [discover, build-test-and-pack]
-    if: needs.discover.outputs.is-prerelease == 'false'
+    if: needs.discover.outputs.is-prerelease == 'false' && needs.discover.outputs.is-packable == 'true'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -191,7 +223,7 @@ jobs:
   publish-prerelease:
     runs-on: ubuntu-latest
     needs: [discover, build-test-and-pack]
-    if: needs.discover.outputs.is-prerelease == 'true'
+    if: needs.discover.outputs.is-prerelease == 'true' && needs.discover.outputs.is-packable == 'true'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -227,11 +259,13 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.ref }}
 
-      - name: Download packages
+      - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: nuget-packages
-          path: packages
+          name: artifacts
+          path: |
+            packages
+            apps
 
       - name: Calculate changelog tag range
         id: tag-range
@@ -300,5 +334,5 @@ jobs:
           version: ${{ needs.discover.outputs.version }}
           is-prerelease: ${{ needs.discover.outputs.is-prerelease }}
           release-body: ${{ inputs.changelog-enabled == true && steps.changelog.outputs.changelog-content || 'Automated release' }}
-          artifacts-path: packages
+          artifacts-path: artifacts
           github-token: ${{ secrets.GITHUB_TOKEN }}
