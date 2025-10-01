@@ -41,33 +41,30 @@ runs:
         # Function to search for property in hierarchy (Directory.Build.props, then .csproj)
         find_property() {
           local property_name="$1"
-          local project_dir="$(dirname "$csproj_file")"
+          local project_dir="$(dirname \"$csproj_file\")"
           local current_dir="$project_dir"
           local value=""
           local last_dir=""
           # Search in Directory.Build.props files from project dir up to root
-          while [[ "$current_dir" != "/" && "$current_dir" != "" ]]; do
-            if [[ "$current_dir" == "$last_dir" ]]; then
-              echo "[ERROR] Infinite loop detected in find_property. Breaking."
+          while true; do
+            # Stop if at filesystem root, or at '.' (relative root), or if stuck
+            if [[ "$current_dir" == "/" || "$current_dir" == "." || "$current_dir" == "$last_dir" || -z "$current_dir" ]]; then
               break
             fi
             local build_props="$current_dir/Directory.Build.props"
             if [[ -f "$build_props" ]]; then
-              echo "Checking $build_props for $property_name"
               value=$(grep -o "<$property_name>[^<]*</$property_name>" "$build_props" | sed 's/<[^>]*>//g' | head -1)
               if [[ -n "$value" ]]; then
-                echo "Found $property_name in $build_props: $value"
                 echo "$value"
                 return
               fi
             fi
             last_dir="$current_dir"
-            current_dir="$(dirname "$current_dir")"
+            current_dir="$(dirname \"$current_dir\")"
           done
           # If not found in Directory.Build.props, check the .csproj file
           value=$(grep -o "<$property_name>[^<]*</$property_name>" "$csproj_file" | sed 's/<[^>]*>//g' | head -1)
           if [[ -n "$value" ]]; then
-            echo "Found $property_name in project file: $value"
             echo "$value"
           fi
         }
