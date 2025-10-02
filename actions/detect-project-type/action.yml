@@ -11,12 +11,6 @@ outputs:
   project-type:
     description: 'Type of project: "library" for NuGet packages, "application" for publishable apps'
     value: ${{ steps.detect.outputs.project-type }}
-  is-packable:
-    description: 'Whether the project can be packed as NuGet (true/false)'
-    value: ${{ steps.detect.outputs.is-packable }}
-  is-publishable:
-    description: 'Whether the project can be published as an application (true/false)'
-    value: ${{ steps.detect.outputs.is-publishable }}
   output-type:
     description: 'OutputType from the project file (Exe, WinExe, Library, etc.)'
     value: ${{ steps.detect.outputs.output-type }}
@@ -27,130 +21,106 @@ outputs:
 runs:
   using: 'composite'
   steps:
-    - name: Detect project type
-      id: detect
-      shell: bash
-      run: |
-        set -euo pipefail
-        csproj_file="${{ inputs.project-path }}"
-        if [[ ! -f "$csproj_file" ]]; then
-          echo "Error: Project file not found: $csproj_file"
-          exit 1
+  - name: Detect project type
+    id: detect
+    shell: bash
+    run: |
+      set -euo pipefail
+
+      csproj_file="${{ inputs.project-path }}"
+      if [[ ! -f "$csproj_file" ]]; then
+        echo "Error: Project file not found: $csproj_file"
+        exit 1
+      fi
+      echo "::group::Searching for Directory.Build.props up from $(dirname "$csproj_file")"
+
+      project_dir="$(dirname "$csproj_file")"
+      current_dir="$project_dir"
+      found_props=""
+      while true; do
+        if [[ -f "$current_dir/Directory.Build.props" ]]; then
+          found_props="$current_dir/Directory.Build.props"
+          echo "Found: $found_props"
+          break
         fi
-        echo "Analyzing project file: $csproj_file"
-        # Function to search for property in hierarchy (Directory.Build.props, then .csproj)
-        find_property() {
-          local property_name="$1"
-          local project_dir="$(dirname \"$csproj_file\")"
-          local current_dir="$project_dir"
-          local value=""
-          local last_dir=""
-          # Search in Directory.Build.props files from project dir up to root
-          while true; do
-            # Stop if at filesystem root, or at '.' (relative root), or if stuck
-            if [[ "$current_dir" == "/" || "$current_dir" == "." || "$current_dir" == "$last_dir" || -z "$current_dir" ]]; then
-              break
-            fi
-            local build_props="$current_dir/Directory.Build.props"
-            if [[ -f "$build_props" ]]; then
-              value=$(grep -o "<$property_name>[^<]*</$property_name>" "$build_props" | sed 's/<[^>]*>//g' | head -1)
-              if [[ -n "$value" ]]; then
-                echo "$value"
-                return
-              fi
-            fi
-            last_dir="$current_dir"
-            current_dir="$(dirname \"$current_dir\")"
-          done
-          # If not found in Directory.Build.props, check the .csproj file
-          value=$(grep -o "<$property_name>[^<]*</$property_name>" "$csproj_file" | sed 's/<[^>]*>//g' | head -1)
-          if [[ -n "$value" ]]; then
-            echo "$value"
-          fi
-        }
-        
-        # Extract properties using hierarchy
-        output_type=$(find_property "OutputType")
-        if [[ -z "$output_type" ]]; then
-          output_type="Library"  # Default if not specified
+        parent_dir="$(dirname "$current_dir")"
+        # stop if we can't go further
+        if [[ "$current_dir" == "$parent_dir" || "$current_dir" == "/" || -z "$current_dir" ]]; then
+          break
         fi
-        echo "Final OutputType: $output_type"
-        
-        # Extract TargetFramework(s)
-        target_framework=$(find_property "TargetFramework")
+        current_dir="$parent_dir"
+      done
+
+      if [[ -z "$found_props" ]]; then
+        echo "No Directory.Build.props found — will fallback to the .csproj file"
+        found_props="$csproj_file"
+      fi
+      echo "::endgroup::"
+
+      # Ensure xmllint is available (more reliable than grep for XML)
+      if ! command -v xmllint >/dev/null 2>&1; then
+        echo "xmllint not found -> installing libxml2-utils"
+        sudo apt-get update -y
+        sudo apt-get install -y libxml2-utils
+      fi
+
+      # Helper: extract a property using xmllint (handles namespaces & multiline)
+      extract_prop() {
+        local file="$1"
+        local prop="$2"
+        # use local-name() to be robust against namespaces
+        xmllint --xpath "string(//PropertyGroup/*[local-name()='$prop'][1])" "$file" 2>/dev/null || true
+      }
+
+      # Get OutputType (first try Directory.Build.props, then .csproj)
+      output_type="$(extract_prop "$found_props" "OutputType")"
+      if [[ -z "$output_type" ]]; then
+        output_type="$(extract_prop "$csproj_file" "OutputType")"
+      fi
+      if [[ -z "$output_type" ]]; then
+        output_type="Library"
+      fi
+      echo "OutputType = '$output_type'"
+
+      # Get TargetFramework or first from TargetFrameworks (prefer Directory.Build.props)
+      target_framework="$(extract_prop "$found_props" "TargetFramework")"
+      if [[ -z "$target_framework" ]]; then
+        target_frameworks="$(extract_prop "$found_props" "TargetFrameworks")"
+        if [[ -n "$target_frameworks" ]]; then
+          # remove whitespace and take first ; separated framework
+          target_framework="$(echo "$target_frameworks" | tr -d '[:space:]' | cut -d';' -f1)"
+        fi
+      fi
+      # fallback: try .csproj if still empty
+      if [[ -z "$target_framework" ]]; then
+        target_framework="$(extract_prop "$csproj_file" "TargetFramework")"
         if [[ -z "$target_framework" ]]; then
-          target_frameworks=$(find_property "TargetFrameworks")
-          if [[ -n "$target_frameworks" ]]; then
-            # Take the first value if multiple frameworks are present
-            target_framework=$(echo "$target_frameworks" | cut -d';' -f1)
+          tfs="$(extract_prop "$csproj_file" "TargetFrameworks")"
+          if [[ -n "$tfs" ]]; then
+            target_framework="$(echo "$tfs" | tr -d '[:space:]' | cut -d';' -f1)"
           fi
         fi
-        echo "Final TargetFramework: $target_framework"
-        
-        # Check IsPackable property
-        is_packable_prop=$(find_property "IsPackable")
-        echo "Final IsPackable: $is_packable_prop"
-        
-        # Determine project type based on analysis
-        project_type="library"
-        is_packable="true"
-        is_publishable="false"
-        
-        # Check if it's an executable (application)
-        if [[ "$output_type" == "Exe" || "$output_type" == "WinExe" ]]; then
+      fi
+
+      echo "TargetFramework = '$target_framework'"
+
+      # Determine project type
+      project_type="library"
+      if [[ "$output_type" == "Exe" || "$output_type" == "WinExe" ]]; then
+        project_type="application"
+      fi
+
+      # Also consider SDK attribute (web/worker)
+      sdk_attr="$(xmllint --xpath "string(/Project/@Sdk)" "$csproj_file" 2>/dev/null || true)"
+      if [[ -n "$sdk_attr" ]]; then
+        if [[ "$sdk_attr" == *"Microsoft.NET.Sdk.Web"* || "$sdk_attr" == *"Microsoft.NET.Sdk.Worker"* ]]; then
           project_type="application"
-          is_packable="false"
-          is_publishable="true"
-          echo "Detected executable project (OutputType: $output_type)"
         fi
-        
-        # Check explicit IsPackable setting
-        if [[ "$is_packable_prop" == "false" ]]; then
-          project_type="application"
-          is_packable="false"
-          is_publishable="true"
-          echo "Detected non-packable project (IsPackable: false)"
-        elif [[ "$is_packable_prop" == "true" ]]; then
-          project_type="library"
-          is_packable="true"
-          is_publishable="false"
-          echo "Detected packable project (IsPackable: true)"
-        fi
-        
-        # Check for web applications (usually publishable, not packable)
-        if grep -q '<Project Sdk="Microsoft\.NET\.Sdk\.Web">' "$csproj_file"; then
-          project_type="application"
-          is_packable="false"
-          is_publishable="true"
-          echo "Detected web application (SDK: Microsoft.NET.Sdk.Web)"
-        fi
-        
-        # Check for worker services (usually publishable, not packable)
-        if grep -q '<Project Sdk="Microsoft\.NET\.Sdk\.Worker">' "$csproj_file"; then
-          project_type="application"
-          is_packable="false"
-          is_publishable="true"
-          echo "Detected worker service (SDK: Microsoft.NET.Sdk.Worker)"
-        fi
-        
-        # Special case: if it has PackageReference but no executable output, likely a library
-        if [[ "$output_type" == "Library" ]] && grep -q '<PackageReference' "$csproj_file"; then
-          project_type="library"
-          is_packable="true"
-          is_publishable="false"
-          echo "Detected library project with package references"
-        fi
-        
-        echo "Final determination:"
-        echo "  Project Type: $project_type"
-        echo "  Is Packable: $is_packable"
-        echo "  Is Publishable: $is_publishable"
-        echo "  Output Type: $output_type"
-        echo "  Target Framework: $target_framework"
-        
-        # Set outputs
-        echo "project-type=$project_type" >> $GITHUB_OUTPUT
-        echo "is-packable=$is_packable" >> $GITHUB_OUTPUT
-        echo "is-publishable=$is_publishable" >> $GITHUB_OUTPUT
-        echo "output-type=$output_type" >> $GITHUB_OUTPUT
-        echo "target-framework=$target_framework" >> $GITHUB_OUTPUT
+      fi
+
+      echo "Determined project_type='$project_type', output_type='$output_type', target_framework='$target_framework'"
+
+      # Set outputs
+      echo "project-type=$project_type" >> $GITHUB_OUTPUT
+      echo "output-type=$output_type" >> $GITHUB_OUTPUT
+      echo "target-framework=$target_framework" >> $GITHUB_OUTPUT
