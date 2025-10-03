@@ -204,7 +204,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: nuget-packages
-          path: packages
+          path: artifacts
 
       - name: Publish stable release
         if: inputs.dry-run != true
@@ -233,7 +233,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: nuget-packages
-          path: packages
+          path: artifacts
 
       - name: Publish prerelease
         if: inputs.dry-run != true
