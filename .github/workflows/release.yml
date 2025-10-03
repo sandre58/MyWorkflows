@@ -193,7 +193,7 @@ jobs:
   publish-release:
     runs-on: ubuntu-latest
     needs: [discover, build-test-and-pack]
-    if: needs.discover.outputs.is-prerelease == 'false' && needs.discover.outputs.is-packable == 'true'
+    if: needs.discover.outputs.is-prerelease == 'false' && needs.discover.outputs.project-type == 'library'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -222,7 +222,7 @@ jobs:
   publish-prerelease:
     runs-on: ubuntu-latest
     needs: [discover, build-test-and-pack]
-    if: needs.discover.outputs.is-prerelease == 'true' && needs.discover.outputs.is-packable == 'true'
+    if: needs.discover.outputs.is-prerelease == 'true' && needs.discover.outputs.project-type == 'library'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -250,8 +250,8 @@ jobs:
 
   create-release:
     runs-on: ubuntu-latest
-    needs: [discover, publish-release, publish-prerelease]
-    if: always() && (needs.publish-release.result == 'success' || needs.publish-prerelease.result == 'success')
+    needs: [discover, build-test-and-pack]
+    if: always() && needs.build-test-and-pack.result == 'success'
     steps:
       - uses: actions/checkout@v4
         with:

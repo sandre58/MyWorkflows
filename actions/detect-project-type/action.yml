@@ -78,7 +78,7 @@ runs:
         output_type="$(extract_prop "$csproj_file" "OutputType")"
       fi
       if [[ -z "$output_type" ]]; then
-        output_type="library"
+        output_type="Library"
       fi
       echo "OutputType = '$output_type'"
 
