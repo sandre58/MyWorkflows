@@ -163,6 +163,7 @@ jobs:
           project-path: ${{ needs.discover.outputs.project-path }}
           version: ${{ needs.discover.outputs.version }}
           pack-args: "--no-build"
+          output-dir: "artifacts"
 
       - name: Publish
         id: publish
@@ -181,14 +182,14 @@ jobs:
         if: needs.discover.outputs.project-type == 'library'
         with:
           name: nuget-packages
-          path: "artifacts/${{ steps.pack.outputs.output-directory }}/*.nupkg"
+          path: "${{ steps.pack.outputs.output-directory }}/*.nupkg"
 
       - name: Upload App
         uses: actions/upload-artifact@v4
         if: needs.discover.outputs.project-type == 'application'
         with:
           name: apps
-          path: "artifacts/${{ needs.discover.outputs.project-name }}"
+          path: "${{ steps.publish.outputs.output-directory }}"
 
   publish-release:
     runs-on: ubuntu-latest
