@@ -182,7 +182,7 @@ jobs:
         if: needs.discover.outputs.project-type == 'library'
         with:
           name: nuget-packages
-          path: "${{ steps.pack.outputs.output-directory }}/*.nupkg"
+          path: "${{ steps.pack.outputs.output-directory }}"
 
       - name: Upload App
         uses: actions/upload-artifact@v4
@@ -262,6 +262,7 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
+          pattern: '*'
           path: artifacts
           merge-multiple: true
 
