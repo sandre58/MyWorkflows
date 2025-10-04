@@ -281,6 +281,7 @@ jobs:
           repository-url: ${{ github.server_url }}/${{ github.repository }}
           title: ${{ needs.discover.outputs.project-name || github.repository }}
           template-file: ".chglog/RELEASE.tpl.md"
+          changelog-path: ${{ needs.discover.outputs.changelog-path }}
 
       - name: Generate Full Changelog
         if: inputs.changelog-enabled == true

@@ -32,6 +32,9 @@ inputs:
     description: "Output format (markdown, json, etc.)"
     required: false
     default: 'markdown'
+  changelog-path:
+    description: "Path to the changelog file (for substitution in templates)"
+    required: false
 
 outputs:
   changelog-content:
@@ -102,7 +105,6 @@ runs:
           if [[ -f "$config_template" ]]; then
             # Replace repository URL placeholder
             template_filename="$(basename "${{ inputs.template-file }}")"
-            output_file="$(dirname "${{ inputs.output-file }}")"
             repo_url="${{ inputs.repository-url }}"
             if [[ -z "$repo_url" ]]; then
               repo_url="${{ github.server_url }}/${{ github.repository }}"
@@ -114,7 +116,6 @@ runs:
             sed -e "s|{{ .Info.Title }}|${{ inputs.title }}|g" \
                 -e "s|{{ .Info.RepositoryURL }}|$repo_url|g" \
                 -e "s|{{ .Info.TemplateFile }}|$template_filename|g" \
-                -e "s|{{ .Info.ChangelogFile }}|$output_file|g" \
                 "$config_template" > "${{ inputs.config-file }}"
             echo "[git-chglog] Config file created: ${{ inputs.config-file }}"
           else
@@ -168,6 +169,11 @@ runs:
         
         # Generate changelog
         changelog_content=$($cmd)
+        
+        # Replace custom placeholder for changelog path if provided
+        if [[ -n "${{ inputs.changelog-path }}" ]]; then
+          changelog_content=$(echo "$changelog_content" | sed "s|{{CHANGELOG_PATH}}|${{ inputs.changelog-path }}|g")
+        fi
         
         # Save to file only if output-file input provided
         if [[ -n "${{ inputs.output-file }}" ]]; then

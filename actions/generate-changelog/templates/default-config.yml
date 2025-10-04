@@ -3,7 +3,6 @@ template: {{ .Info.TemplateFile }}
 info:
   title: {{ .Info.Title }}
   repository_url: {{ .Info.RepositoryURL }}
-  changelog_file: {{ .Info.ChangelogFile }}
 options:
   commits:
     filters:

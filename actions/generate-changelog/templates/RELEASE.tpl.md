@@ -44,5 +44,5 @@
 
 {{ "" }}  <!-- force a line break -->
 
-📖 [Full Changelog]({{ $.Info.RepositoryURL }}/blob/main/{{ $.Info.ChangelogFile }}/CHANGELOG.md)
+📖 [Full Changelog]({{ $.Info.RepositoryURL }}/blob/main/{{CHANGELOG_PATH}})
 {{ end }}
