@@ -172,7 +172,7 @@ runs:
         
         # Replace custom placeholder for changelog path if provided
         if [[ -n "${{ inputs.changelog-path }}" ]]; then
-          changelog_content=$(echo "$changelog_content" | sed "s|{{CHANGELOG_PATH}}|${{ inputs.changelog-path }}|g")
+          changelog_content=$(echo "$changelog_content" | sed "s|__CHANGELOG_PATH__|${{ inputs.changelog-path }}|g")
         fi
         
         # Save to file only if output-file input provided
