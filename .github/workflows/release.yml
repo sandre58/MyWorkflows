@@ -211,7 +211,7 @@ jobs:
         if: inputs.dry-run != true
         uses: sandre58/MyWorkflows/actions/nuget-push@main
         with:
-          packages-path: packages/*.nupkg
+          packages-path: artifacts/*.nupkg
           source-url: ${{ inputs.release-nuget-source }}
           api-key: ${{ secrets.RELEASE_API_KEY }}
 
@@ -240,14 +240,14 @@ jobs:
         if: inputs.dry-run != true
         uses: sandre58/MyWorkflows/actions/nuget-push@main
         with:
-          packages-path: packages/*.nupkg
+          packages-path: artifacts/*.nupkg
           source-url: ${{ inputs.prerelease-nuget-source }}
           api-key: ${{ secrets.PRERELEASE_API_KEY }}
 
       - name: DRY_RUN prerelease
         if: inputs.dry-run == true
         run: |
-          echo "[DRY_RUN] Would publish prerelease to ${{ inputs.prerelease-nuget-source }} with packages: packages/*.nupkg"
+          echo "[DRY_RUN] Would publish prerelease to ${{ inputs.prerelease-nuget-source }} with packages: artifacts/*.nupkg"
 
   create-release:
     runs-on: ubuntu-latest
@@ -262,7 +262,6 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: '*'
           path: artifacts
           merge-multiple: true
 
@@ -304,6 +303,10 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           
+          # Checkout main branch
+          git fetch origin main
+          git checkout main
+          
           # Check if changelog file was created and has changes
           if [[ -f "$changelog_path" ]]; then
             # Add the changelog file
@@ -316,10 +319,10 @@ jobs:
               # Commit the changelog
               git commit -m "docs: update CHANGELOG.md for ${{ needs.discover.outputs.tag }} [ci skip]"
               
-              # Push the changes
-              git push origin ${{ github.ref_name }}
+              # Push the changes to main
+              git push origin main
               
-              echo "Changelog committed and pushed successfully"
+              echo "Changelog committed and pushed successfully to main"
             fi
           else
             echo "No changelog file found at: $changelog_path"

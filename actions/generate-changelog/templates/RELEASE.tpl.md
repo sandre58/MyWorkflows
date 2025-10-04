@@ -42,16 +42,7 @@
 
 ---
 
-{{- $basePath := "" -}}
-{{- if (hasSuffix $.Info.Title ".Wpf") -}}
-  {{- $basePath = printf "src/wpf/%s" $.Info.Title -}}
-{{- else if (hasSuffix $.Info.Title ".Avalonia") -}}
-  {{- $basePath = printf "src/avalonia/%s" $.Info.Title -}}
-{{- else -}}
-  {{- $basePath = printf "src/%s" $.Info.Title -}}
-{{- end -}}
-
 {{ "" }}  <!-- force a line break -->
 
-📖 [Full Changelog]({{ $.Info.RepositoryURL }}/blob/main/{{ $basePath }}/CHANGELOG.md)
+📖 [Full Changelog]({{ $.Info.RepositoryURL }}/blob/main/{{ $.Info.ChangelogFile }}/CHANGELOG.md)
 {{ end }}
