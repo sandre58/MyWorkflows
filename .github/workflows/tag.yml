@@ -21,7 +21,7 @@ on:
       src-path:
         description: "Path to search for project files"
         type: string
-        default: 'src'
+        default: '.'
 
 permissions:
   contents: write      # Required to create tags
@@ -47,7 +47,7 @@ jobs:
         id: find-projects
         uses: sandre58/MyWorkflows/actions/find-projects@main
         with:
-          src-path: ${{ inputs.src-path }}
+          project-paths: ${{ inputs.src-path }}
 
   tag-projects:
     runs-on: ubuntu-latest
@@ -60,7 +60,6 @@ jobs:
         id: version
         uses: sandre58/MyWorkflows/actions/compute-version@main
         with:
-          project: ${{ matrix.name }}
           working-directory: ${{ matrix.dir }}
 
       - name: Create and push tag
