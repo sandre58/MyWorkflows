@@ -360,6 +360,12 @@ jobs:
             echo "No changelog file found at: $changelog_path"
           fi
 
+      - name: Debug artifacts content
+        run: |
+          echo "=== Artifacts directory content ==="
+          ls -R artifacts || echo "No artifacts directory found"
+          echo "==================================="
+
       - name: Create GitHub Release
         uses: sandre58/MyWorkflows/actions/create-release@main
         with:
