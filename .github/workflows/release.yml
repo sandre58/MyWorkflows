@@ -192,15 +192,28 @@ jobs:
           
           echo "zip-file=$zipFile" >> $env:GITHUB_OUTPUT
         id: zip-app
-
-      - name: Upload release artifacts
+          
+      - name: Upload packages
         uses: actions/upload-artifact@v4
+        if: needs.discover.outputs.project-type == 'library'
         with:
-          name: release-artifacts
-          path: |
-            ${{ steps.pack.outputs.output-directory }}/*
-            ${{ steps.zip-app.outputs.zip-file }}
+          name: nuget-packages
+          path: "${{ steps.pack.outputs.output-directory }}/*.nupkg"
 
+      - name: Upload symbol packages
+        uses: actions/upload-artifact@v4
+        if: needs.discover.outputs.project-type == 'library'
+        with:
+          name: nuget-symbols
+          path: "${{ steps.pack.outputs.output-directory }}/*.snupkg"
+
+      - name: Upload App Zip
+        uses: actions/upload-artifact@v4
+        if: needs.discover.outputs.project-type == 'application'
+        with:
+          name: apps
+          path: "${{ steps.zip-app.outputs.zip-file }}"
+  
   publish-release:
     runs-on: ubuntu-latest
     needs: [discover, build-test-and-pack]
@@ -214,7 +227,13 @@ jobs:
       - name: Download packages
         uses: actions/download-artifact@v4
         with:
-          name: release-artifacts
+          name: nuget-packages
+          path: artifacts
+
+      - name: Download symbol packages
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-symbols
           path: artifacts
 
       - name: Publish stable release
@@ -243,7 +262,13 @@ jobs:
       - name: Download packages
         uses: actions/download-artifact@v4
         with:
-          name: release-artifacts
+          name: nuget-packages
+          path: artifacts
+
+      - name: Download symbol packages
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-symbols
           path: artifacts
 
       - name: Publish prerelease
@@ -268,12 +293,6 @@ jobs:
         with:
           fetch-depth: 0
           ref: main
-
-      - name: Download release artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: release-artifacts
-          path: artifacts
 
       - name: Calculate changelog tag range
         id: tag-range
@@ -343,11 +362,17 @@ jobs:
             echo "No changelog file found at: $changelog_path"
           fi
 
-      - name: Debug artifacts content
-        run: |
-          echo "=== Artifacts directory content ==="
-          ls -R artifacts || echo "No artifacts directory found"
-          echo "==================================="
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-packages
+          path: artifacts
+
+      - name: Download App
+        uses: actions/download-artifact@v4
+        with:
+          name: apps
+          path: artifacts
 
       - name: Create GitHub Release
         uses: sandre58/MyWorkflows/actions/create-release@main
