@@ -177,26 +177,29 @@ jobs:
           framework: ${{ needs.discover.outputs.target-framework }}
           output-path: "artifacts/${{ needs.discover.outputs.project-name }}"
 
-      - name: Upload packages
-        uses: actions/upload-artifact@v4
-        if: needs.discover.outputs.project-type == 'library'
-        with:
-          name: nuget-packages
-          path: "${{ steps.pack.outputs.output-directory }}/*.nupkg"
-
-      - name: Upload symbol packages
-        uses: actions/upload-artifact@v4
-        if: needs.discover.outputs.project-type == 'library'
-        with:
-          name: nuget-symbols
-          path: "${{ steps.pack.outputs.output-directory }}/*.snupkg"
-
-      - name: Upload App
-        uses: actions/upload-artifact@v4
+      - name: Zip published application
         if: needs.discover.outputs.project-type == 'application'
+        shell: pwsh
+        run: |
+          $publishDir = "${{ steps.publish.outputs.output-directory }}"
+          $projectName = "${{ needs.discover.outputs.project-name }}"
+          $version = "${{ needs.discover.outputs.version }}"
+          $zipFile = "artifacts/$projectName-$version.zip"
+          
+          Write-Host "Creating zip file: $zipFile"
+          Compress-Archive -Path "$publishDir/*" -DestinationPath $zipFile -Force
+          Write-Host "Zip file created successfully"
+          
+          echo "zip-file=$zipFile" >> $env:GITHUB_OUTPUT
+        id: zip-app
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
         with:
-          name: apps
-          path: "${{ steps.publish.outputs.output-directory }}"
+          name: release-artifacts
+          path: |
+            ${{ steps.pack.outputs.output-directory }}/*
+            ${{ steps.zip-app.outputs.zip-file }}
 
   publish-release:
     runs-on: ubuntu-latest
@@ -211,13 +214,7 @@ jobs:
       - name: Download packages
         uses: actions/download-artifact@v4
         with:
-          name: nuget-packages
-          path: artifacts
-
-      - name: Download symbol packages
-        uses: actions/download-artifact@v4
-        with:
-          name: nuget-symbols
+          name: release-artifacts
           path: artifacts
 
       - name: Publish stable release
@@ -246,13 +243,7 @@ jobs:
       - name: Download packages
         uses: actions/download-artifact@v4
         with:
-          name: nuget-packages
-          path: artifacts
-
-      - name: Download symbol packages
-        uses: actions/download-artifact@v4
-        with:
-          name: nuget-symbols
+          name: release-artifacts
           path: artifacts
 
       - name: Publish prerelease
@@ -278,18 +269,10 @@ jobs:
           fetch-depth: 0
           ref: main
 
-      - name: Download NuGet packages (without symbols)
+      - name: Download release artifacts
         uses: actions/download-artifact@v4
-        if: needs.discover.outputs.project-type == 'library'
         with:
-          name: nuget-packages
-          path: artifacts
-
-      - name: Download apps
-        uses: actions/download-artifact@v4
-        if: needs.discover.outputs.project-type == 'application'
-        with:
-          name: apps
+          name: release-artifacts
           path: artifacts
 
       - name: Calculate changelog tag range
