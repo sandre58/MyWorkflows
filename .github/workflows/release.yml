@@ -368,5 +368,5 @@ jobs:
           version: ${{ needs.discover.outputs.version }}
           is-prerelease: ${{ needs.discover.outputs.is-prerelease }}
           release-body: ${{ inputs.changelog-enabled == true && steps.changelog.outputs.changelog-content || 'Automated release' }}
-          artifacts-path: artifacts/**/*
+          artifacts-path: artifacts/*
           github-token: ${{ secrets.GITHUB_TOKEN }}
