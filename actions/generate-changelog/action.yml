@@ -35,6 +35,9 @@ inputs:
   changelog-path:
     description: "Path to the changelog file (for substitution in templates)"
     required: false
+  paths:
+    description: "Comma-separated list of paths to filter commits (e.g., 'src/MyProject,docs')"
+    required: false
 
 outputs:
   changelog-content:
@@ -159,6 +162,17 @@ runs:
         
         if [[ -n "${{ inputs.next-tag }}" ]]; then
           cmd="$cmd --next-tag ${{ inputs.next-tag }}"
+        fi
+        
+        # Add path filters if provided
+        if [[ -n "${{ inputs.paths }}" ]]; then
+          # Convert comma-separated paths to space-separated for git-chglog
+          IFS=',' read -ra PATHS <<< "${{ inputs.paths }}"
+          for path in "${PATHS[@]}"; do
+            # Trim whitespace
+            path=$(echo "$path" | xargs)
+            cmd="$cmd --path $path"
+          done
         fi
         
         if [[ -n "${{ inputs.tag }}" ]]; then

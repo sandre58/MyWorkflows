@@ -182,7 +182,14 @@ jobs:
         if: needs.discover.outputs.project-type == 'library'
         with:
           name: nuget-packages
-          path: "${{ steps.pack.outputs.output-directory }}"
+          path: "${{ steps.pack.outputs.output-directory }}/*.nupkg"
+
+      - name: Upload symbol packages
+        uses: actions/upload-artifact@v4
+        if: needs.discover.outputs.project-type == 'library'
+        with:
+          name: nuget-symbols
+          path: "${{ steps.pack.outputs.output-directory }}/*.snupkg"
 
       - name: Upload App
         uses: actions/upload-artifact@v4
@@ -207,11 +214,17 @@ jobs:
           name: nuget-packages
           path: artifacts
 
+      - name: Download symbol packages
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-symbols
+          path: artifacts
+
       - name: Publish stable release
         if: inputs.dry-run != true
         uses: sandre58/MyWorkflows/actions/nuget-push@main
         with:
-          packages-path: artifacts/*.nupkg
+          packages-path: artifacts/*
           source-url: ${{ inputs.release-nuget-source }}
           api-key: ${{ secrets.RELEASE_API_KEY }}
 
@@ -236,11 +249,17 @@ jobs:
           name: nuget-packages
           path: artifacts
 
+      - name: Download symbol packages
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-symbols
+          path: artifacts
+
       - name: Publish prerelease
         if: inputs.dry-run != true
         uses: sandre58/MyWorkflows/actions/nuget-push@main
         with:
-          packages-path: artifacts/*.nupkg
+          packages-path: artifacts/*
           source-url: ${{ inputs.prerelease-nuget-source }}
           api-key: ${{ secrets.PRERELEASE_API_KEY }}
 
@@ -259,11 +278,19 @@ jobs:
           fetch-depth: 0
           ref: main
 
-      - name: Download all artifacts
+      - name: Download NuGet packages (without symbols)
         uses: actions/download-artifact@v4
+        if: needs.discover.outputs.project-type == 'library'
         with:
+          name: nuget-packages
           path: artifacts
-          merge-multiple: true
+
+      - name: Download apps
+        uses: actions/download-artifact@v4
+        if: needs.discover.outputs.project-type == 'application'
+        with:
+          name: apps
+          path: artifacts
 
       - name: Calculate changelog tag range
         id: tag-range
@@ -282,6 +309,13 @@ jobs:
           title: ${{ needs.discover.outputs.project-name || github.repository }}
           template-file: ".chglog/RELEASE.tpl.md"
           changelog-path: ${{ needs.discover.outputs.changelog-path }}
+          paths: ${{ needs.discover.outputs.project-dir }}
+
+      - name: Clean repository before changelog
+        shell: bash
+        run: |
+          git reset --hard HEAD
+          git clean -fdx
 
       - name: Generate Full Changelog
         if: inputs.changelog-enabled == true
@@ -292,6 +326,7 @@ jobs:
           title: ${{ needs.discover.outputs.project-name || github.repository }}
           output-file: ${{ needs.discover.outputs.changelog-path }}
           template-file: ".chglog/CHANGELOG.tpl.md"
+          paths: ${{ needs.discover.outputs.project-dir }}
 
       - name: Commit and push changelog
         if: inputs.changelog-enabled == true
