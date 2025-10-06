@@ -51,6 +51,14 @@ on:
         description: "Whether to compute versions automatically using semantic versioning"
         type: boolean
         default: true
+      build-args:
+        description: "Additional arguments for dotnet build command"
+        type: string
+        required: false
+      test-args:
+        description: "Additional arguments for dotnet test command"
+        type: string
+        required: false
 
 permissions:
   checks: write        # Required to publish test results
@@ -156,6 +164,8 @@ jobs:
         with:
           dotnet-versions: ${{ inputs.dotnet-versions }}
           runsettings-file: ${{ inputs.runsettings-file }}
+          build-args: ${{ inputs.build-args }}
+          test-args: ${{ inputs.test-args }}
 
       - name: Check for test result files
         id: check_test_results
