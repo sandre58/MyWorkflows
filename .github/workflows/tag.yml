@@ -22,6 +22,10 @@ on:
         description: "Path to search for project files"
         type: string
         default: 'src'
+      max-depth:
+        description: 'Maximum search depth for finding projects (empty = all subfolders)'
+        type: string
+        required: false
 
 permissions:
   contents: write      # Required to create tags
@@ -48,6 +52,7 @@ jobs:
         uses: sandre58/MyWorkflows/actions/find-projects@main
         with:
           project-paths: ${{ inputs.src-path }}
+          max-depth: ${{ inputs.max-depth }}
 
   tag-projects:
     runs-on: ubuntu-latest
