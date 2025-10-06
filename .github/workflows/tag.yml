@@ -61,6 +61,11 @@ jobs:
     strategy:
       matrix: ${{ fromJson(needs.discover-projects.outputs.projects-matrix) }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref }}
+          
       - name: Compute version for ${{ matrix.name }}
         id: version
         uses: sandre58/MyWorkflows/actions/compute-version@main
