@@ -82,6 +82,99 @@ dotnet-versions: |
   9.0.x
 ```
 
+## Workload Installation Inputs
+
+### `install-web-workload`
+
+**Description:** Install ASP.NET Core workload for web development
+
+**Required:** No
+
+**Default:** `false`
+
+**Example:**
+```yaml
+install-web-workload: 'true'
+```
+
+### `install-maui-workload`
+
+**Description:** Install .NET MAUI workload for cross-platform mobile and desktop development
+
+**Required:** No
+
+**Default:** `false`
+
+**Example:**
+```yaml
+install-maui-workload: 'true'
+```
+
+### `install-ios-workload`
+
+**Description:** Install iOS workload for iOS development
+
+**Required:** No
+
+**Default:** `false`
+
+**Example:**
+```yaml
+install-ios-workload: 'true'
+```
+
+### `install-android-workload`
+
+**Description:** Install Android workload for Android development
+
+**Required:** No
+
+**Default:** `false`
+
+**Example:**
+```yaml
+install-android-workload: 'true'
+```
+
+### `install-maccatalyst-workload`
+
+**Description:** Install MacCatalyst workload for macOS development
+
+**Required:** No
+
+**Default:** `false`
+
+**Example:**
+```yaml
+install-maccatalyst-workload: 'true'
+```
+
+### `install-windows-workload`
+
+**Description:** Install Windows workload for Windows desktop development
+
+**Required:** No
+
+**Default:** `false`
+
+**Example:**
+```yaml
+install-windows-workload: 'true'
+```
+
+### `install-wasm-workload`
+
+**Description:** Install WebAssembly workload for Blazor WebAssembly development
+
+**Required:** No
+
+**Default:** `false`
+
+**Example:**
+```yaml
+install-wasm-workload: 'true'
+```
+
 ## Outputs
 
 ### `version`
@@ -142,6 +235,63 @@ dotnet-versions: |
 - name: Build and pack
   if: steps.version.outputs.changed == 'true'
   run: dotnet pack src/MyProject/MyProject.csproj -p:Version=${{ steps.version.outputs.version }}
+```
+
+## Workload Examples
+
+### MAUI Cross-Platform Project
+
+```yaml
+- name: Set version for MAUI project
+  id: version
+  uses: sandre58/MyWorkflows/actions/set-project-version@main
+  with:
+    project-path: 'src/MauiApp/MauiApp.csproj'
+    project-name: 'MauiApp'
+    project-dir: 'src/MauiApp'
+    install-maui-workload: 'true'
+    install-android-workload: 'true'
+    install-ios-workload: 'true'
+```
+
+### Blazor WebAssembly Project
+
+```yaml
+- name: Set version for Blazor WASM project
+  id: version
+  uses: sandre58/MyWorkflows/actions/set-project-version@main
+  with:
+    project-path: 'src/BlazorWasm/BlazorWasm.csproj'
+    project-name: 'BlazorWasm'
+    project-dir: 'src/BlazorWasm'
+    install-web-workload: 'true'
+    install-wasm-workload: 'true'
+```
+
+### ASP.NET Core Web API
+
+```yaml
+- name: Set version for Web API project
+  id: version
+  uses: sandre58/MyWorkflows/actions/set-project-version@main
+  with:
+    project-path: 'src/WebApi/WebApi.csproj'
+    project-name: 'WebApi'
+    project-dir: 'src/WebApi'
+    install-web-workload: 'true'
+```
+
+### Windows Desktop Application
+
+```yaml
+- name: Set version for Windows app
+  id: version
+  uses: sandre58/MyWorkflows/actions/set-project-version@main
+  with:
+    project-path: 'src/WinApp/WinApp.csproj'
+    project-name: 'WinApp'
+    project-dir: 'src/WinApp'
+    install-windows-workload: 'true'
 ```
 
 ### In monorepo with matrix
@@ -226,12 +376,36 @@ The action uses conventional commits to determine version bumps:
 - Monorepo support
 - Customizable .NET SDK versions
 - Automatic tag pattern calculation
+- **Workload Support**: Optional installation of specialized workloads:
+  - ASP.NET Core (Aspire) for web development
+  - .NET MAUI for cross-platform apps
+  - iOS development workload
+  - Android development workload
+  - MacCatalyst for macOS apps
+  - Windows desktop development
+  - WebAssembly (WASM) for Blazor WebAssembly apps
+
+## Workloads Reference
+
+| Workload | ID | Description | Platform Requirements |
+|----------|----|--------------|--------------------|
+| ASP.NET Core | `aspire` | Web development with Aspire | Any |
+| .NET MAUI | `maui` | Cross-platform UI framework | Any |
+| iOS | `ios` | iOS application development | macOS only |
+| Android | `android` | Android application development | Any |
+| MacCatalyst | `maccatalyst` | macOS application development | macOS only |
+| Windows | `maui-windows` | Windows desktop development | Windows only |
+| WebAssembly | `wasm-tools` | Blazor WebAssembly development | Any |
 
 ## Requirements
 
 - Git repository with fetch-depth: 0 (full history)
 - Conventional commit messages
 - Bash shell
+- **Platform-specific workloads**:
+  - iOS workloads require macOS runner
+  - Windows workload works best on Windows runner
+  - Android, MAUI, and WASM workloads work on any platform
 
 ## See Also
 

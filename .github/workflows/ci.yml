@@ -239,6 +239,13 @@ jobs:
           project-path: ${{ matrix.path }}
           project-name: ${{ matrix.name }}
           project-dir: ${{ matrix.dir }}
+          install-web-workload: ${{ inputs.install-web-workload }}
+          install-maui-workload: ${{ inputs.install-maui-workload }}
+          install-ios-workload: ${{ inputs.install-ios-workload }}
+          install-android-workload: ${{ inputs.install-android-workload }}
+          install-maccatalyst-workload: ${{ inputs.install-maccatalyst-workload }}
+          install-windows-workload: ${{ inputs.install-windows-workload }}
+          install-wasm-workload: ${{ inputs.install-wasm-workload }}
 
       - name: Pack ${{ matrix.name }}
         id: pack
@@ -273,6 +280,13 @@ jobs:
           project-path: ${{ matrix.path }}
           project-name: ${{ matrix.name }}
           project-dir: ${{ matrix.dir }}
+          install-web-workload: ${{ inputs.install-web-workload }}
+          install-maui-workload: ${{ inputs.install-maui-workload }}
+          install-ios-workload: ${{ inputs.install-ios-workload }}
+          install-android-workload: ${{ inputs.install-android-workload }}
+          install-maccatalyst-workload: ${{ inputs.install-maccatalyst-workload }}
+          install-windows-workload: ${{ inputs.install-windows-workload }}
+          install-wasm-workload: ${{ inputs.install-wasm-workload }}
 
       - name: Publish ${{ matrix.name }}
         id: publish
