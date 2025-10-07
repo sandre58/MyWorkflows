@@ -59,6 +59,30 @@ on:
         description: "Additional arguments for dotnet test command"
         type: string
         required: false
+      install-web-workload:
+        description: "Install ASP.NET Core workload for web development"
+        type: boolean
+        default: false
+      install-maui-workload:
+        description: "Install .NET MAUI workload for cross-platform mobile and desktop development"
+        type: boolean
+        default: false
+      install-ios-workload:
+        description: "Install iOS workload for iOS development"
+        type: boolean
+        default: false
+      install-android-workload:
+        description: "Install Android workload for Android development"
+        type: boolean
+        default: false
+      install-maccatalyst-workload:
+        description: "Install MacCatalyst workload for macOS development"
+        type: boolean
+        default: false
+      install-windows-workload:
+        description: "Install Windows workload for Windows desktop development"
+        type: boolean
+        default: false
 
 permissions:
   checks: write        # Required to publish test results
@@ -166,6 +190,12 @@ jobs:
           runsettings-file: ${{ inputs.runsettings-file }}
           build-args: ${{ inputs.build-args }}
           test-args: ${{ inputs.test-args }}
+          install-web-workload: ${{ inputs.install-web-workload }}
+          install-maui-workload: ${{ inputs.install-maui-workload }}
+          install-ios-workload: ${{ inputs.install-ios-workload }}
+          install-android-workload: ${{ inputs.install-android-workload }}
+          install-maccatalyst-workload: ${{ inputs.install-maccatalyst-workload }}
+          install-windows-workload: ${{ inputs.install-windows-workload }}
 
       - name: Check for test result files
         id: check_test_results

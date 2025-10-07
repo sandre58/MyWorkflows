@@ -40,6 +40,30 @@ on:
         description: "Path to the changelog file"
         type: string
         default: 'CHANGELOG.md'
+      install-web-workload:
+        description: "Install ASP.NET Core workload for web development"
+        type: boolean
+        default: false
+      install-maui-workload:
+        description: "Install .NET MAUI workload for cross-platform mobile and desktop development"
+        type: boolean
+        default: false
+      install-ios-workload:
+        description: "Install iOS workload for iOS development"
+        type: boolean
+        default: false
+      install-android-workload:
+        description: "Install Android workload for Android development"
+        type: boolean
+        default: false
+      install-maccatalyst-workload:
+        description: "Install MacCatalyst workload for macOS development"
+        type: boolean
+        default: false
+      install-windows-workload:
+        description: "Install Windows workload for Windows desktop development"
+        type: boolean
+        default: false
     secrets:
       RELEASE_API_KEY:
         description: "API key for publishing stable releases"
@@ -154,6 +178,12 @@ jobs:
           version: ${{ needs.discover.outputs.version }}
           dotnet-versions: ${{ inputs.dotnet-versions }}
           runsettings-file: ${{ inputs.runsettings-file }}
+          install-web-workload: ${{ inputs.install-web-workload }}
+          install-maui-workload: ${{ inputs.install-maui-workload }}
+          install-ios-workload: ${{ inputs.install-ios-workload }}
+          install-android-workload: ${{ inputs.install-android-workload }}
+          install-maccatalyst-workload: ${{ inputs.install-maccatalyst-workload }}
+          install-windows-workload: ${{ inputs.install-windows-workload }}
 
       - name: Pack
         id: pack

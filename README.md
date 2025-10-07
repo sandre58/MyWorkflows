@@ -136,6 +136,63 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
+#### With Workloads for Cross-Platform Development
+
+```yaml
+name: Release MAUI App
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    uses: sandre58/MyWorkflows/.github/workflows/release.yml@main
+    with:
+      install-maui-workload: true
+      install-android-workload: true
+      install-ios-workload: true
+      install-windows-workload: true
+    secrets:
+      RELEASE_API_KEY: ${{ secrets.NUGET_API_KEY }}
+      PRERELEASE_API_KEY: ${{ secrets.NUGET_API_KEY }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+#### CI Workflow with Web Workload
+
+```yaml
+name: CI
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    uses: sandre58/MyWorkflows/.github/workflows/ci.yml@main
+    with:
+      install-web-workload: true
+      install-android-workload: true  # For Blazor Hybrid
+      dotnet-versions: |
+        8.0.x
+        9.0.x
+```
+
+### Workload Parameters
+
+Both `ci.yml` and `release.yml` workflows support the following workload parameters:
+
+| Parameter | Description | Default | Platform Requirements |
+|-----------|-------------|---------|---------------------|
+| `install-web-workload` | ASP.NET Core/Aspire workload | `false` | Any |
+| `install-maui-workload` | .NET MAUI framework | `false` | Any |
+| `install-ios-workload` | iOS development | `false` | macOS only |
+| `install-android-workload` | Android development | `false` | Any |
+| `install-maccatalyst-workload` | macOS apps | `false` | macOS only |
+| `install-windows-workload` | Windows desktop | `false` | Windows preferred |
+
 ### Using Individual Actions
 
 Each action can be used independently in your workflows:
