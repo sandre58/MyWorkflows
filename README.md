@@ -174,6 +174,7 @@ jobs:
     uses: sandre58/MyWorkflows/.github/workflows/ci.yml@main
     with:
       install-web-workload: true
+      install-wasm-workload: true  # For Blazor WebAssembly
       install-android-workload: true  # For Blazor Hybrid
       dotnet-versions: |
         8.0.x
@@ -192,6 +193,7 @@ Both `ci.yml` and `release.yml` workflows support the following workload paramet
 | `install-android-workload` | Android development | `false` | Any |
 | `install-maccatalyst-workload` | macOS apps | `false` | macOS only |
 | `install-windows-workload` | Windows desktop | `false` | Windows preferred |
+| `install-wasm-workload` | Blazor WebAssembly | `false` | Any |
 
 ### Using Individual Actions
 

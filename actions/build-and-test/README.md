@@ -204,6 +204,19 @@ install-maccatalyst-workload: 'true'
 install-windows-workload: 'true'
 ```
 
+### `install-wasm-workload`
+
+**Description:** Install WebAssembly workload for Blazor WebAssembly development
+
+**Required:** No
+
+**Default:** `false`
+
+**Example:**
+```yaml
+install-wasm-workload: 'true'
+```
+
 ## Outputs
 
 This action does not produce outputs.
@@ -273,6 +286,18 @@ This action does not produce outputs.
   with:
     project-path: 'src/WebApp/WebApp.csproj'
     install-web-workload: 'true'
+    version: '1.0.0'
+```
+
+### Blazor WebAssembly Application
+
+```yaml
+- name: Build and test Blazor WASM app
+  uses: sandre58/MyWorkflows/actions/build-and-test@main
+  with:
+    project-path: 'src/BlazorWasm/BlazorWasm.csproj'
+    install-web-workload: 'true'
+    install-wasm-workload: 'true'
     version: '1.0.0'
 ```
 
@@ -365,6 +390,7 @@ steps:
   - Android development workload
   - MacCatalyst for macOS apps
   - Windows desktop development
+  - WebAssembly (WASM) for Blazor WebAssembly apps
 - Restores NuGet packages
 - Builds with custom configuration
 - Runs tests with customizable loggers
@@ -382,6 +408,7 @@ steps:
 | Android | `android` | Android application development | Any |
 | MacCatalyst | `maccatalyst` | macOS application development | macOS only |
 | Windows | `maui-windows` | Windows desktop development | Windows only |
+| WebAssembly | `wasm-tools` | Blazor WebAssembly development | Any |
 
 ## Test Loggers
 

@@ -59,6 +59,10 @@ inputs:
     description: "Install Windows workload for Windows desktop development"
     required: false
     default: 'false'
+  install-wasm-workload:
+    description: "Install WebAssembly workload for Blazor WebAssembly development"
+    required: false
+    default: 'false'
 
 runs:
   using: "composite"
@@ -109,6 +113,13 @@ runs:
       run: |
         echo "Installing Windows workload..."
         dotnet workload install maui-windows
+
+    - name: Install WebAssembly Workload
+      if: inputs.install-wasm-workload == 'true'
+      shell: bash
+      run: |
+        echo "Installing WebAssembly workload..."
+        dotnet workload install wasm-tools
 
     - name: Build
       shell: bash

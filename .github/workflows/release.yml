@@ -64,6 +64,10 @@ on:
         description: "Install Windows workload for Windows desktop development"
         type: boolean
         default: false
+      install-wasm-workload:
+        description: "Install WebAssembly workload for Blazor WebAssembly development"
+        type: boolean
+        default: false
     secrets:
       RELEASE_API_KEY:
         description: "API key for publishing stable releases"
@@ -184,6 +188,7 @@ jobs:
           install-android-workload: ${{ inputs.install-android-workload }}
           install-maccatalyst-workload: ${{ inputs.install-maccatalyst-workload }}
           install-windows-workload: ${{ inputs.install-windows-workload }}
+          install-wasm-workload: ${{ inputs.install-wasm-workload }}
 
       - name: Pack
         id: pack
