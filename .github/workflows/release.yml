@@ -211,6 +211,13 @@ jobs:
           dotnet-versions: ${{ inputs.dotnet-versions }}
           framework: ${{ needs.discover.outputs.target-framework }}
           output-path: "artifacts/${{ needs.discover.outputs.project-name }}"
+          install-web-workload: ${{ inputs.install-web-workload }}
+          install-maui-workload: ${{ inputs.install-maui-workload }}
+          install-ios-workload: ${{ inputs.install-ios-workload }}
+          install-android-workload: ${{ inputs.install-android-workload }}
+          install-maccatalyst-workload: ${{ inputs.install-maccatalyst-workload }}
+          install-windows-workload: ${{ inputs.install-windows-workload }}
+          install-wasm-workload: ${{ inputs.install-wasm-workload }}
 
       - name: Zip published application
         if: needs.discover.outputs.project-type == 'application'
