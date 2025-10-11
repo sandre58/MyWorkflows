@@ -72,30 +72,30 @@ runs:
         xmllint --xpath "string(//PropertyGroup/*[local-name()='$prop'][1])" "$file" 2>/dev/null || true
       }
 
-      # Get OutputType (first try Directory.Build.props, then .csproj)
-      output_type="$(extract_prop "$found_props" "OutputType")"
+      # Get OutputType (first try .csproj, then Directory.Build.props)
+      output_type="$(extract_prop "$csproj_file" "OutputType")"
       if [[ -z "$output_type" ]]; then
-        output_type="$(extract_prop "$csproj_file" "OutputType")"
+        output_type="$(extract_prop "$found_props" "OutputType")"
       fi
       if [[ -z "$output_type" ]]; then
         output_type="Library"
       fi
       echo "OutputType = '$output_type'"
 
-      # Get TargetFramework or first from TargetFrameworks (prefer Directory.Build.props)
-      target_framework="$(extract_prop "$found_props" "TargetFramework")"
+      # Get TargetFramework or first from TargetFrameworks (prefer .csproj)
+      target_framework="$(extract_prop "$csproj_file" "TargetFramework")"
       if [[ -z "$target_framework" ]]; then
-        target_frameworks="$(extract_prop "$found_props" "TargetFrameworks")"
+        target_frameworks="$(extract_prop "$csproj_file" "TargetFrameworks")"
         if [[ -n "$target_frameworks" ]]; then
           # remove whitespace and take first ; separated framework
           target_framework="$(echo "$target_frameworks" | tr -d '[:space:]' | cut -d';' -f1)"
         fi
       fi
-      # fallback: try .csproj if still empty
+      # fallback: try Directory.Build.props if still empty
       if [[ -z "$target_framework" ]]; then
-        target_framework="$(extract_prop "$csproj_file" "TargetFramework")"
+        target_framework="$(extract_prop "$found_props" "TargetFramework")"
         if [[ -z "$target_framework" ]]; then
-          tfs="$(extract_prop "$csproj_file" "TargetFrameworks")"
+          tfs="$(extract_prop "$found_props" "TargetFrameworks")"
           if [[ -n "$tfs" ]]; then
             target_framework="$(echo "$tfs" | tr -d '[:space:]' | cut -d';' -f1)"
           fi
