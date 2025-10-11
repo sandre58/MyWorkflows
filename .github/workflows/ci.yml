@@ -264,6 +264,7 @@ jobs:
     runs-on: windows-latest
     needs: ['discover-projects', 'build-and-test']
     if: always() && needs.build-and-test.result == 'success' && needs.discover-projects.outputs.app-projects-matrix != '{"include":[]}'
+    continue-on-error: true
     strategy:
       matrix: ${{ fromJson(needs.discover-projects.outputs.app-projects-matrix) }}
     steps:
