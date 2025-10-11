@@ -273,6 +273,13 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.ref }}
 
+      - name: Detect project type
+        id: detect-type
+        if: inputs.app-target-framework == ''
+        uses: sandre58/MyWorkflows/actions/detect-project-type@main
+        with:
+          project-path: ${{ matrix.path }}
+
       - name: Set version for ${{ matrix.name }}
         id: version
         uses: sandre58/MyWorkflows/actions/set-project-version@main
@@ -296,7 +303,7 @@ jobs:
           dotnet-versions: ${{ inputs.dotnet-versions }}
           project-path: ${{ matrix.path }}
           output-path: "app/${{ matrix.name }}"
-          framework: ${{ inputs.app-target-framework }}
+          framework: ${{ inputs.app-target-framework != '' && inputs.app-target-framework || steps.detect-type.outputs.target-framework }}
           install-web-workload: ${{ inputs.install-web-workload }}
           install-maui-workload: ${{ inputs.install-maui-workload }}
           install-ios-workload: ${{ inputs.install-ios-workload }}
