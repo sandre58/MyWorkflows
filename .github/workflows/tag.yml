@@ -66,12 +66,27 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.ref }}
           
+      - name: Calculate tag pattern for ${{ matrix.name }}
+        id: tag-pattern
+        shell: bash
+        run: |
+          TAG_PATTERN="${{ inputs.tag-pattern }}"
+          PROJECT_NAME="${{ matrix.name }}"
+          
+          # Replace {project} with the actual project name
+          CALCULATED_TAG_PATTERN="${TAG_PATTERN/\{project\}/$PROJECT_NAME}"
+          
+          echo "Original pattern: $TAG_PATTERN"
+          echo "Project name: $PROJECT_NAME"
+          echo "Calculated pattern: $CALCULATED_TAG_PATTERN"
+          echo "tag-pattern=$CALCULATED_TAG_PATTERN" >> $GITHUB_OUTPUT
+          
       - name: Compute version for ${{ matrix.name }}
         id: version
         uses: sandre58/MyWorkflows/actions/compute-version@main
         with:
           working-directory: ${{ matrix.dir }}
-          tag-pattern: ${{ inputs.tag-pattern }}
+          tag-pattern: ${{ steps.tag-pattern.outputs.tag-pattern }}
 
       - name: Create and push tag
         if: steps.version.outputs.changed == 'true' || inputs.force-tag == true
@@ -80,7 +95,7 @@ jobs:
         with:
           project: ${{ matrix.name }}
           version: ${{ steps.version.outputs.version }}
-          tag-pattern: ${{ inputs.tag-pattern }}
+          tag-pattern: ${{ steps.tag-pattern.outputs.tag-pattern }}
           dry-run: ${{ inputs.dry-run }}
           working-directory: ${{ matrix.dir }}
 
