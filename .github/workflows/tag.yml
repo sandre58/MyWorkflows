@@ -71,6 +71,7 @@ jobs:
         uses: sandre58/MyWorkflows/actions/compute-version@main
         with:
           working-directory: ${{ matrix.dir }}
+          tag-pattern: ${{ inputs.tag-pattern }}
 
       - name: Create and push tag
         if: steps.version.outputs.changed == 'true' || inputs.force-tag == true
