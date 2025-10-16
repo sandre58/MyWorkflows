@@ -104,41 +104,6 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
 
 jobs:
-  gitversion:
-    runs-on: ubuntu-latest
-    if: inputs.use-gitversion == true
-    outputs:
-      version: ${{ steps.gitversion.outputs.semVer }}
-      full-version: ${{ steps.gitversion.outputs.fullSemVer }}
-      major: ${{ steps.gitversion.outputs.major }}
-      minor: ${{ steps.gitversion.outputs.minor }}
-      patch: ${{ steps.gitversion.outputs.patch }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ github.ref }}
-
-      - name: Install GitVersion
-        uses: gittools/actions/gitversion/setup@v1.1.1
-        with:
-          versionSpec: '5.x'
-
-      - name: Determine Version
-        id: gitversion
-        uses: gittools/actions/gitversion/execute@v1.1.1
-        with:
-          useConfigFile: true
-          configFilePath: GitVersion.yml
-
-      - name: Display GitVersion outputs
-        run: |
-          echo "GitVersion SemVer: ${{ steps.gitversion.outputs.semVer }}"
-          echo "GitVersion FullSemVer: ${{ steps.gitversion.outputs.fullSemVer }}"
-          echo "GitVersion Major: ${{ steps.gitversion.outputs.major }}"
-          echo "GitVersion Minor: ${{ steps.gitversion.outputs.minor }}"
-          echo "GitVersion Patch: ${{ steps.gitversion.outputs.patch }}"
-
   discover-projects:
     runs-on: ubuntu-latest
     outputs:
@@ -216,8 +181,8 @@ jobs:
 
   build-and-test:
     runs-on: windows-latest  # Changed to Windows to support WPF projects
-    needs: [discover-projects, gitversion]
-    if: always() && needs.discover-projects.result == 'success' && (needs.gitversion.result == 'success' || needs.gitversion.result == 'skipped')
+    needs: [discover-projects]
+    if: always() && needs.discover-projects.result == 'success'
     outputs:
       has-test-results: ${{ steps.check_test_results.outputs.found }}
     steps:
@@ -225,6 +190,29 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.ref }}
+
+      - name: Install GitVersion
+        if: inputs.use-gitversion == true
+        uses: gittools/actions/gitversion/setup@v1.1.1
+        with:
+          versionSpec: '5.x'
+
+      - name: Determine Version
+        if: inputs.use-gitversion == true
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v1.1.1
+        with:
+          useConfigFile: true
+          configFilePath: GitVersion.yml
+
+      - name: Display GitVersion outputs
+        if: inputs.use-gitversion == true
+        run: |
+          echo "GitVersion SemVer: ${{ steps.gitversion.outputs.semVer }}"
+          echo "GitVersion FullSemVer: ${{ steps.gitversion.outputs.fullSemVer }}"
+          echo "GitVersion Major: ${{ steps.gitversion.outputs.major }}"
+          echo "GitVersion Minor: ${{ steps.gitversion.outputs.minor }}"
+          echo "GitVersion Patch: ${{ steps.gitversion.outputs.patch }}"
 
       - name: Build and Test
         uses: sandre58/MyWorkflows/actions/build-and-test@main
@@ -260,8 +248,8 @@ jobs:
 
   pack-nugets:
     runs-on: windows-latest
-    needs: ['discover-projects', 'build-and-test', 'gitversion']
-    if: always() && needs.build-and-test.result == 'success' && needs.discover-projects.outputs.nuget-projects-matrix != '{"include":[]}' && (needs.gitversion.result == 'success' || needs.gitversion.result == 'skipped')
+    needs: ['discover-projects', 'build-and-test']
+    if: always() && needs.build-and-test.result == 'success' && needs.discover-projects.outputs.nuget-projects-matrix != '{"include":[]}'
     strategy:
       matrix: ${{ fromJson(needs.discover-projects.outputs.nuget-projects-matrix) }}
     steps:
@@ -270,9 +258,23 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.ref }}
 
+      - name: Install GitVersion
+        if: inputs.use-gitversion == true
+        uses: gittools/actions/gitversion/setup@v1.1.1
+        with:
+          versionSpec: '5.x'
+
+      - name: Determine Version for ${{ matrix.name }}
+        if: inputs.use-gitversion == true
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v1.1.1
+        with:
+          useConfigFile: true
+          configFilePath: GitVersion.yml
+
       - name: Set version for ${{ matrix.name }}
         id: version
-        if: needs.gitversion.result == 'skipped'
+        if: inputs.use-gitversion == false
         uses: sandre58/MyWorkflows/actions/set-project-version@main
         with:
           dotnet-versions: ${{ inputs.dotnet-versions }}
@@ -302,8 +304,8 @@ jobs:
 
   publish-apps:
     runs-on: windows-latest
-    needs: ['discover-projects', 'build-and-test', 'gitversion']
-    if: always() && needs.build-and-test.result == 'success' && needs.discover-projects.outputs.app-projects-matrix != '{"include":[]}' && (needs.gitversion.result == 'success' || needs.gitversion.result == 'skipped')
+    needs: ['discover-projects', 'build-and-test']
+    if: always() && needs.build-and-test.result == 'success' && needs.discover-projects.outputs.app-projects-matrix != '{"include":[]}'
     continue-on-error: true
     strategy:
       matrix: ${{ fromJson(needs.discover-projects.outputs.app-projects-matrix) }}
@@ -312,6 +314,20 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.ref }}
+
+      - name: Install GitVersion
+        if: inputs.use-gitversion == true
+        uses: gittools/actions/gitversion/setup@v1.1.1
+        with:
+          versionSpec: '5.x'
+
+      - name: Determine Version for ${{ matrix.name }}
+        if: inputs.use-gitversion == true
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v1.1.1
+        with:
+          useConfigFile: true
+          configFilePath: GitVersion.yml
 
       - name: Detect project type
         id: detect-type
@@ -322,7 +338,7 @@ jobs:
 
       - name: Set version for ${{ matrix.name }}
         id: version
-        if: needs.gitversion.result == 'skipped'
+        if: inputs.use-gitversion == false
         uses: sandre58/MyWorkflows/actions/set-project-version@main
         with:
           dotnet-versions: ${{ inputs.dotnet-versions }}
