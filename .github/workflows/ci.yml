@@ -323,7 +323,27 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         shell: bash
         run: |
+          output_dir="${{ inputs.nuget-output }}"
+          
           echo "➡️ Publishing RELEASE packages to: ${{ inputs.nuget-source }}"
+          echo "🔍 Looking for packages in: $output_dir"
+          
+          # Check if directory exists
+          if [[ ! -d "$output_dir" ]]; then
+            echo "❌ Package directory '$output_dir' does not exist"
+            exit 1
+          fi
+          
+          # List packages found
+          if ls "$output_dir"/*.nupkg 1> /dev/null 2>&1; then
+            echo "📦 Found packages:"
+            ls -la "$output_dir"/*.nupkg
+          else
+            echo "❌ No .nupkg files found in '$output_dir'"
+            exit 1
+          fi
+          
+          # Build push arguments
           push_args="--api-key ${{ secrets.NUGET_API_KEY }}"
           push_args="$push_args --source ${{ inputs.nuget-source }}"
 
@@ -331,7 +351,38 @@ jobs:
             push_args="$push_args ${{ inputs.nuget-push-args }}"
           fi
           
-          dotnet nuget push "${{ inputs.nuget-output }}/*.nupkg" $push_args
+          echo "🔧 Using push arguments: [source and key configured]"
+          echo ""
+          
+          # Publish each package individually
+          success_count=0
+          total_count=0
+          
+          for package in "$output_dir"/*.nupkg; do
+            if [[ -f "$package" ]]; then
+              package_name=$(basename "$package")
+              echo "📤 Publishing: $package_name"
+              
+              if dotnet nuget push "$package" $push_args; then
+                echo "✅ Successfully published: $package_name"
+                ((success_count++))
+              else
+                echo "❌ Failed to publish: $package_name"
+              fi
+              ((total_count++))
+              echo ""
+            fi
+          done
+          
+          echo "📊 Publication Summary:"
+          echo "  ✅ Published: $success_count/$total_count packages"
+          
+          if [[ $success_count -eq $total_count ]]; then
+            echo "🎉 All packages published successfully!"
+          else
+            echo "⚠️ Some packages failed to publish"
+            exit 1
+          fi
 
       - name: Upload Packages
         uses: actions/upload-artifact@v4
