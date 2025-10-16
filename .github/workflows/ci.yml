@@ -12,7 +12,7 @@ on:
         description: "List of csproj files to publish (newline separated)"
         type: string
         required: false
-        default: 'demos'
+        default: ''
       app-output:
         description: "Output directory for published apps"
         type: string
