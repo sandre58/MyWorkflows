@@ -25,6 +25,15 @@ on:
         type: string
         required: false
         default: 'packages'
+      nuget-source:
+        description: "NuGet source URL for stable releases"
+        type: string
+        default: 'https://api.nuget.org/v3/index.json'
+      nuget-push-args:
+        description: "Additional arguments for dotnet nuget push command"
+        type: string
+        required: false
+        default: '--skip-duplicate'
       build-args:
         description: "Additional arguments for dotnet build command"
         type: string
@@ -47,6 +56,10 @@ on:
         type: string
         required: false
         default: 'GitHubActions trx'
+      changelog-path:
+        description: "Path to the changelog file"
+        type: string
+        default: 'CHANGELOG.md'
       install-web-workload:
         description: "Install ASP.NET Core workload for web development"
         type: boolean
@@ -89,6 +102,10 @@ on:
         description: "Target framework for app publish (e.g. net8.0, net6.0)"
         type: string
         required: false
+    secrets:
+      NUGET_API_KEY:
+        description: "API key for publishing stable releases"
+        required: true
 
 permissions:
   checks: write        # Required to publish test results
@@ -107,6 +124,8 @@ jobs:
     runs-on: windows-latest
     outputs:
       has-test-results: ${{ steps.check_test_results.outputs.found }}
+      is-prerelease: ${{ steps.check_test_results.outputs.found }}
+      semVer: ${{ steps.check_test_results.outputs.found }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -278,6 +297,20 @@ jobs:
             ls -la "${{ inputs.nuget-output }}/"/*.nupkg 2>/dev/null || echo "No packages found"
           fi
 
+      # - name: Publish packages
+      #   if: startsWith(github.ref, 'refs/tags/')
+      #   shell: bash
+      #   run: |
+      #     echo "➡️ Publishing RELEASE packages to: ${{ inputs.nuget-source }}"
+      #     push_args="--api-key ${{ secrets.NUGET_API_KEY }}"
+      #     push_args="$push_args --source ${{ inputs.nuget-source }}"
+
+      #     if [[ -n "${{ inputs.nuget-push-args }}" ]]; then
+      #       push_args="$push_args ${{ inputs.nuget-push-args }}"
+      #     fi
+          
+      #     dotnet nuget push "${{ inputs.nuget-output }}" $push_args
+
       - name: Upload Packages
         uses: actions/upload-artifact@v4
         with:
@@ -364,3 +397,90 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: coveragereport
+
+  create-release:
+    runs-on: ubuntu-latest
+    needs: [build-test-pack]
+    if: startsWith(github.ref, 'refs/tags/') && needs.build-test-pack.result == 'success'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Calculate changelog tag range
+        id: tag-range
+        uses: sandre58/MyWorkflows/actions/calculate-tag-range@main
+        with:
+          current-tag: ${{ github.ref_name }}
+
+      - name: Generate Changelog
+        id: changelog
+        uses: sandre58/MyWorkflows/actions/generate-changelog@main
+        with:
+          tag: ${{ steps.tag-range.outputs.tag-range }}
+          repository-url: ${{ github.server_url }}/${{ github.repository }}
+          title: ${{ github.ref_name }}
+          template-file: ".chglog/RELEASE.tpl.md"
+          changelog-path: ${{ inputs.changelog-path }}
+
+      - name: Clean repository before changelog
+        shell: bash
+        run: |
+          git reset --hard HEAD
+          git clean -fdx
+
+      - name: Generate Full Changelog
+        uses: sandre58/MyWorkflows/actions/generate-changelog@main
+        with:
+          tag: ${{ github.ref_name }}
+          repository-url: ${{ github.server_url }}/${{ github.repository }}
+          title: ${{ github.ref_name }}
+          output-file: ${{ inputs.changelog-path }}
+          template-file: ".chglog/CHANGELOG.tpl.md"
+
+      - name: Commit and push changelog
+        shell: bash
+        run: |
+          changelog_path="${{ inputs.changelog-path }}"
+          
+          # Configure git for the action
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          # Check if changelog file was created and has changes
+          if [[ -f "$changelog_path" ]]; then
+            # Add the changelog file
+            git add "$changelog_path"
+            
+            # Check if there are changes to commit
+            if git diff --cached --quiet; then
+              echo "No changes to commit for changelog"
+            else
+              # Commit the changelog
+              git commit -m "docs: update CHANGELOG.md for ${{ github.ref_name }} [ci skip]"
+              
+              # Push the changes to main
+              git push origin main
+              
+              echo "Changelog committed and pushed successfully to main"
+            fi
+          else
+            echo "No changelog file found at: $changelog_path"
+          fi
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: packages
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ needs.build-test-pack.outputs.semVer }}
+          body: ${{ steps.changelog.outputs.changelog-content }}
+          draft: false
+          prerelease: ${{ needs.build-test-pack.outputs.is-prerelease }}
+          files: artifacts/*
