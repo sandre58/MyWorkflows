@@ -102,10 +102,15 @@ on:
         description: "Target framework for app publish (e.g. net8.0, net6.0)"
         type: string
         required: false
+      dry-run:
+        description: "If true, do not publish packages, just show what would be published"
+        type: boolean
+        required: false
+        default: false
     secrets:
       NUGET_API_KEY:
         description: "API key for publishing stable releases"
-        required: true
+        required: false
 
 permissions:
   checks: write        # Required to publish test results
@@ -319,19 +324,95 @@ jobs:
             ls -la "${{ inputs.nuget-output }}/"/*.nupkg 2>/dev/null || echo "No packages found"
           fi
 
-      # - name: Publish packages
-      #   if: startsWith(github.ref, 'refs/tags/')
-      #   shell: bash
-      #   run: |
-      #     echo "➡️ Publishing RELEASE packages to: ${{ inputs.nuget-source }}"
-      #     push_args="--api-key ${{ secrets.NUGET_API_KEY }}"
-      #     push_args="$push_args --source ${{ inputs.nuget-source }}"
-
-      #     if [[ -n "${{ inputs.nuget-push-args }}" ]]; then
-      #       push_args="$push_args ${{ inputs.nuget-push-args }}"
-      #     fi
+      - name: Publish packages
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          output_dir="${{ inputs.nuget-output }}"
           
-      #     dotnet nuget push "${{ inputs.nuget-output }}" $push_args
+          # Check if we have packages to publish
+          if [[ ! -d "$output_dir" || ! $(ls "$output_dir"/*.nupkg 2>/dev/null) ]]; then
+            echo "❌ No packages found in '$output_dir' to publish"
+            exit 0
+          fi
+          
+          echo "📦 Found packages to publish:"
+          ls -la "$output_dir"/*.nupkg
+          echo ""
+          
+          if [[ "${{ inputs.dry-run }}" == "true" ]]; then
+            echo "🧪 DRY RUN MODE - Simulating package publication"
+            echo "📋 Would publish to: ${{ inputs.nuget-source }}"
+            
+            # Show what would be published
+            for package in "$output_dir"/*.nupkg; do
+              if [[ -f "$package" ]]; then
+                package_name=$(basename "$package")
+                echo "  📦 Would publish: $package_name"
+              fi
+            done
+            
+            echo ""
+            echo "🔧 Push arguments that would be used:"
+            echo "  --source ${{ inputs.nuget-source }}"
+            if [[ -n "${{ inputs.nuget-push-args }}" ]]; then
+              echo "  ${{ inputs.nuget-push-args }}"
+            fi
+            
+            if [[ -n "${{ secrets.NUGET_API_KEY }}" ]]; then
+              echo "  --api-key [REDACTED]"
+            else
+              echo "  ⚠️ No API key provided (NUGET_API_KEY secret not set)"
+            fi
+            
+            echo ""
+            echo "✅ DRY RUN completed - no packages were actually published"
+          else
+            echo "➡️ Publishing RELEASE packages to: ${{ inputs.nuget-source }}"
+            
+            # Check if API key is provided
+            if [[ -z "${{ secrets.NUGET_API_KEY }}" ]]; then
+              echo "❌ NUGET_API_KEY secret is required for publishing"
+              exit 1
+            fi
+            
+            # Build push arguments
+            push_args="--api-key ${{ secrets.NUGET_API_KEY }}"
+            push_args="$push_args --source ${{ inputs.nuget-source }}"
+            
+            if [[ -n "${{ inputs.nuget-push-args }}" ]]; then
+              push_args="$push_args ${{ inputs.nuget-push-args }}"
+            fi
+            
+            # Publish each package
+            published_count=0
+            failed_count=0
+            
+            for package in "$output_dir"/*.nupkg; do
+              if [[ -f "$package" ]]; then
+                package_name=$(basename "$package")
+                echo "📤 Publishing: $package_name"
+                
+                if dotnet nuget push "$package" $push_args; then
+                  echo "✅ Successfully published: $package_name"
+                  ((published_count++))
+                else
+                  echo "❌ Failed to publish: $package_name"
+                  ((failed_count++))
+                fi
+                echo ""
+              fi
+            done
+            
+            echo "📊 Publication Summary:"
+            echo "  ✅ Published: $published_count packages"
+            echo "  ❌ Failed: $failed_count packages"
+            
+            if [[ $failed_count -gt 0 ]]; then
+              echo "⚠️ Some packages failed to publish"
+              exit 1
+            fi
+          fi
 
       - name: Upload Packages
         uses: actions/upload-artifact@v4
