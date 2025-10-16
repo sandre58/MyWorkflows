@@ -191,6 +191,28 @@ jobs:
         with:
           versionSpec: '5.x'
 
+      - name: Initialize GitVersion
+        shell: bash
+        run: |
+          echo "Checking if GitVersion configuration exists..."
+          if [[ ! -f "GitVersion.yml" ]]; then
+            echo "⚠️ GitVersion.yml not found, downloading default configuration..."
+            
+            # Download the default GitVersion.yml from the MyWorkflows repository
+            default_config_url="https://raw.githubusercontent.com/sandre58/MyWorkflows/main/defaults/GitVersion.yml"
+            
+            if curl -fsSL "$default_config_url" -o GitVersion.yml; then
+              echo "✅ Downloaded default GitVersion.yml configuration"
+            else
+              echo "❌ Failed to download default configuration, creating fallback..."
+            fi
+          else
+            echo "✅ GitVersion.yml already exists"
+          fi
+          
+          echo "📋 GitVersion configuration:"
+          cat GitVersion.yml
+
       - name: Determine Version
         id: gitversion
         uses: gittools/actions/gitversion/execute@v1.1.1

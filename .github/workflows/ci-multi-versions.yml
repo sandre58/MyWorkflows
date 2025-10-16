@@ -1,4 +1,4 @@
-name: CI
+name: CI (Multi Versions)
 
 on:
   workflow_call:
@@ -12,7 +12,7 @@ on:
         description: "List of csproj files to publish (newline separated)"
         type: string
         required: false
-        default: ''
+        default: 'demos'
       app-output:
         description: "Output directory for published apps"
         type: string
@@ -49,10 +49,6 @@ on:
         default: '.runsettings'
       compute-versions:
         description: "Whether to compute versions automatically using semantic versioning"
-        type: boolean
-        default: true
-      use-gitversion:
-        description: "Whether to use GitVersion for version calculation instead of semantic versioning"
         type: boolean
         default: true
       build-args:
@@ -191,11 +187,6 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.ref }}
 
-      - name: Get GitVersion
-        id: gitversion
-        if: inputs.use-gitversion == true
-        uses: sandre58/MyWorkflows/actions/gitversion@main
-
       - name: Build and Test
         uses: sandre58/MyWorkflows/actions/build-and-test@main
         with:
@@ -240,14 +231,8 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.ref }}
 
-      - name: Get GitVersion
-        id: gitversion
-        if: inputs.use-gitversion == true
-        uses: sandre58/MyWorkflows/actions/gitversion@main
-
       - name: Set version for ${{ matrix.name }}
         id: version
-        if: inputs.use-gitversion == false
         uses: sandre58/MyWorkflows/actions/set-project-version@main
         with:
           dotnet-versions: ${{ inputs.dotnet-versions }}
@@ -272,7 +257,7 @@ jobs:
       - name: Upload packages
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.name }}.${{ inputs.use-gitversion == true && steps.gitversion.outputs.semver || steps.version.outputs.version }}
+          name: ${{ matrix.name }}.${{ steps.version.outputs.version }}
           path: ${{ steps.pack.outputs.output-directory }}/${{ matrix.name }}.*.nupkg
 
   publish-apps:
@@ -288,11 +273,6 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.ref }}
 
-      - name: Get GitVersion
-        id: gitversion
-        if: inputs.use-gitversion == true
-        uses: sandre58/MyWorkflows/actions/gitversion@main
-
       - name: Detect project type
         id: detect-type
         if: inputs.app-target-framework == ''
@@ -302,7 +282,6 @@ jobs:
 
       - name: Set version for ${{ matrix.name }}
         id: version
-        if: inputs.use-gitversion == false
         uses: sandre58/MyWorkflows/actions/set-project-version@main
         with:
           dotnet-versions: ${{ inputs.dotnet-versions }}
@@ -333,26 +312,11 @@ jobs:
           install-windows-workload: ${{ inputs.install-windows-workload }}
           install-wasm-workload: ${{ inputs.install-wasm-workload }}
 
-      - name: Zip published application
-        id: zip-app
-        shell: pwsh
-        run: |
-          $publishDir = "${{ steps.publish.outputs.output-directory }}"
-          $projectName = "${{ matrix.name }}"
-          $version = "${{ inputs.use-gitversion == true && steps.gitversion.outputs.semver || steps.version.outputs.version }}"
-          $zipFile = "$projectName-$version.zip"
-          
-          Write-Host "Creating zip file: $zipFile"
-          Compress-Archive -Path "$publishDir/*" -DestinationPath $zipFile -Force
-          Write-Host "Zip file created successfully"
-          
-          echo "zip-file=$zipFile" >> $env:GITHUB_OUTPUT
-
       - name: Upload apps
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.name }}.${{ inputs.use-gitversion == true && steps.gitversion.outputs.semver || steps.version.outputs.version }}
-          path: "${{ steps.zip-app.outputs.zip-file }}"
+          name: ${{ matrix.name }}.${{ steps.version.outputs.version }}
+          path: ${{ steps.publish.outputs.output-directory }}
 
   publish-reports:
     runs-on: ubuntu-latest
