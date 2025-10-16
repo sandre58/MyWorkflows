@@ -323,27 +323,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         shell: bash
         run: |
-          output_dir="${{ inputs.nuget-output }}"
-          
           echo "➡️ Publishing RELEASE packages to: ${{ inputs.nuget-source }}"
-          echo "🔍 Looking for packages in: $output_dir"
-          
-          # Check if directory exists
-          if [[ ! -d "$output_dir" ]]; then
-            echo "❌ Package directory '$output_dir' does not exist"
-            exit 1
-          fi
-          
-          # List packages found
-          if ls "$output_dir"/*.nupkg 1> /dev/null 2>&1; then
-            echo "📦 Found packages:"
-            ls -la "$output_dir"/*.nupkg
-          else
-            echo "❌ No .nupkg files found in '$output_dir'"
-            exit 1
-          fi
-          
-          # Build push arguments
           push_args="--api-key ${{ secrets.NUGET_API_KEY }}"
           push_args="$push_args --source ${{ inputs.nuget-source }}"
 
@@ -351,58 +331,10 @@ jobs:
             push_args="$push_args ${{ inputs.nuget-push-args }}"
           fi
           
-          echo "🔧 Using push arguments: [source and key configured]"
-          echo ""
-          
-          # Publish each package individually
-          success_count=0
-          skipped_count=0
-          failed_count=0
-          total_count=0
-          
-          for package in "$output_dir"/*.nupkg; do
-            if [[ -f "$package" ]]; then
-              package_name=$(basename "$package")
-              echo "📤 Publishing: $package_name"
-              
-              # Capture output to analyze the result
-              push_output=$(dotnet nuget push "$package" $push_args 2>&1)
-              push_result=$?
-              
-              if [[ $push_result -eq 0 ]]; then
-                echo "✅ Successfully published: $package_name"
-                ((success_count++))
-              elif echo "$push_output" | grep -q -i "already exists\|duplicate\|conflict"; then
-                echo "⏭️ Skipped: $package_name (already exists on feed)"
-                ((skipped_count++))
-              else
-                echo "❌ Failed to publish: $package_name"
-                echo "Error details: $push_output"
-                ((failed_count++))
-              fi
-              ((total_count++))
-              echo ""
-            fi
+          for file in $(find artifacts -name "*.nupkg"); do
+            echo "Pushing $file..."
+            dotnet nuget push "$file" $push_args
           done
-          
-          echo "📊 Publication Summary:"
-          echo "  ✅ Published: $success_count packages"
-          echo "  ⏭️ Skipped: $skipped_count packages (already exist)"
-          echo "  ❌ Failed: $failed_count packages"
-          echo "  📦 Total: $total_count packages"
-          
-          if [[ $failed_count -eq 0 ]]; then
-            if [[ $success_count -gt 0 ]]; then
-              echo "🎉 Publication completed successfully!"
-            elif [[ $skipped_count -gt 0 ]]; then
-              echo "📋 All packages were already published (no new packages to publish)"
-            else
-              echo "❓ No packages were processed"
-            fi
-          else
-            echo "💥 Some packages failed to publish with real errors"
-            exit 1
-          fi
 
       - name: Upload Packages
         uses: actions/upload-artifact@v4
