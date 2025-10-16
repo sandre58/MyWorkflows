@@ -20,6 +20,11 @@ on:
         type: string
         required: false
         default: 'src'
+      nuget-output:
+        description: "Output directory for published nugets"
+        type: string
+        required: false
+        default: 'packages'
       build-args:
         description: "Additional arguments for dotnet build command"
         type: string
@@ -210,16 +215,6 @@ jobs:
           
           dotnet test --no-build $test_args
 
-      - name: Check Test Files
-        id: check_test_results
-        shell: bash
-        run: |
-          if compgen -G "${{ inputs.tests-path }}/**/*" > /dev/null; then
-            echo "found=true" >> $GITHUB_OUTPUT
-          else
-            echo "found=false" >> $GITHUB_OUTPUT
-          fi
-
       - name: Pack
         shell: bash
         run: |
@@ -261,7 +256,7 @@ jobs:
           
             # Pack the project
             echo "📦 Packing project '$project_name'..."
-            if dotnet pack "$project_file" --configuration ${{ inputs.configuration }} --no-build --output "packages/"; then
+            if dotnet pack "$project_file" --configuration ${{ inputs.configuration }} --no-build --output "${{ inputs.nuget-output }}/"; then
               echo "✅ Successfully packed '$project_name'"
               ((packed_count++))
             else
@@ -280,15 +275,32 @@ jobs:
           
           if [[ $packed_count -gt 0 ]]; then
             echo "📦 Created packages:"
-            ls -la packages/*.nupkg 2>/dev/null || echo "No packages found"
+            ls -la "${{ inputs.nuget-output }}/"/*.nupkg 2>/dev/null || echo "No packages found"
           fi
 
       - name: Upload Packages
         uses: actions/upload-artifact@v4
         with:
           name: packages
-          path: packages/*.nupkg
+          path: ${{ inputs.nuget-output }}/*.nupkg
           if-no-files-found: ignore
+
+      - name: Check Test Files
+        id: check_test_results
+        shell: bash
+        run: |
+          if compgen -G "${{ inputs.tests-path }}/**/*" > /dev/null; then
+            echo "found=true" >> $GITHUB_OUTPUT
+          else
+            echo "found=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload test results
+        if: steps.check_test_results.outputs.found == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: ${{ inputs.tests-path }}/**/*
 
   publish-tests-reports:
     runs-on: ubuntu-latest
