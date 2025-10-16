@@ -299,7 +299,7 @@ jobs:
       - name: Upload packages
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.name }}.${{ steps.version.outputs.version }}
+          name: ${{ matrix.name }}.${{ inputs.use-gitversion == true && steps.gitversion.outputs.semVer || steps.version.outputs.version }}
           path: ${{ steps.pack.outputs.output-directory }}/${{ matrix.name }}.*.nupkg
 
   publish-apps:
@@ -372,7 +372,7 @@ jobs:
       - name: Upload apps
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.name }}.${{ steps.version.outputs.version }}
+          name: ${{ matrix.name }}.${{ inputs.use-gitversion == true && steps.gitversion.outputs.semVer || steps.version.outputs.version }}
           path: ${{ steps.publish.outputs.output-directory }}
 
   publish-reports:
