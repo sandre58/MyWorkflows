@@ -3,7 +3,8 @@ tag-prefix: 'v'
 
 # Configuration for Conventional Commits
 commit-message-incrementing: Enabled
-commit-message-incrementing-strategy: ConventionalCommits
+commit-message-strict: true
+merge-message-strategy: MergeMessage
 major-version-bump-message: '^(breaking|BREAKING CHANGE:|feat!:|fix!:)'
 minor-version-bump-message: '^(feat:|feature:)'
 patch-version-bump-message: '^(fix:|chore:|docs:|style:|refactor:|perf:|test:)'
