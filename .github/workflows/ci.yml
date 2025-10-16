@@ -386,6 +386,7 @@ jobs:
             
             # Publish each package
             published_count=0
+            skipped_count=0
             failed_count=0
             
             for package in "$output_dir"/*.nupkg; do
@@ -393,11 +394,19 @@ jobs:
                 package_name=$(basename "$package")
                 echo "📤 Publishing: $package_name"
                 
-                if dotnet nuget push "$package" $push_args; then
+                # Capture the output to analyze the result
+                push_output=$(dotnet nuget push "$package" $push_args 2>&1)
+                push_result=$?
+                
+                if [[ $push_result -eq 0 ]]; then
                   echo "✅ Successfully published: $package_name"
                   ((published_count++))
+                elif echo "$push_output" | grep -q -i "already exists\|duplicate\|conflict"; then
+                  echo "⏭️  Skipped: $package_name (already exists)"
+                  ((skipped_count++))
                 else
                   echo "❌ Failed to publish: $package_name"
+                  echo "Error output: $push_output"
                   ((failed_count++))
                 fi
                 echo ""
@@ -406,11 +415,19 @@ jobs:
             
             echo "📊 Publication Summary:"
             echo "  ✅ Published: $published_count packages"
+            echo "  ⏭️ Skipped: $skipped_count packages (duplicates)"
             echo "  ❌ Failed: $failed_count packages"
             
+            # Only fail if there are actual failures (not skips)
             if [[ $failed_count -gt 0 ]]; then
-              echo "⚠️ Some packages failed to publish"
+              echo "💥 Some packages failed to publish with real errors"
               exit 1
+            elif [[ $published_count -eq 0 && $skipped_count -gt 0 ]]; then
+              echo "📋 All packages were skipped (likely duplicates) - this is not an error"
+            elif [[ $published_count -gt 0 ]]; then
+              echo "🎉 Publication completed successfully!"
+            else
+              echo "❓ No packages were processed"
             fi
           fi
 
