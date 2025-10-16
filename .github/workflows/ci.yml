@@ -3,38 +3,6 @@ name: CI
 on:
   workflow_call:
     inputs:
-      nuget-projects:
-        description: "List of csproj files to pack (newline separated)"
-        type: string
-        required: false
-        default: 'src'
-      app-projects:
-        description: "List of csproj files to publish (newline separated)"
-        type: string
-        required: false
-        default: ''
-      app-output:
-        description: "Output directory for published apps"
-        type: string
-        required: false
-        default: 'apps'
-      max-depth:
-        description: "Maximum search depth for finding projects (empty = all subfolders)"
-        type: string
-        required: false
-      app-target-framework:
-        description: "Target framework for app publish (e.g. net8.0, net6.0)"
-        type: string
-        required: false
-      tests-path:
-        description: "Path to search for test files"
-        type: string
-        default: 'TestResults'
-      tag-pattern:
-        description: "Pattern for tag names, e.g. {project}/v{version} or v{version}"
-        type: string
-        required: false
-        default: '{project}/v{version}'
       dotnet-versions:
         description: "Versions of .NET to install"
         type: string
@@ -42,27 +10,38 @@ on:
           10.0.x
           9.0.x
           8.0.x
+      configuration:
+        description: "Build configuration (Release, Debug, etc.)"
+        type: string
+        required: false
+        default: 'Release'
+      nuget-projects:
+        description: "List of csproj files to pack (newline separated)"
+        type: string
+        required: false
+        default: 'src'
+      build-args:
+        description: "Additional arguments for dotnet build command"
+        type: string
+        required: false
+      tests-path:
+        description: "Path to search for test files"
+        type: string
+        default: 'TestResults'
       runsettings-file:
         description: "Path to .runsettings file for test configuration"
         type: string
         required: false
         default: '.runsettings'
-      compute-versions:
-        description: "Whether to compute versions automatically using semantic versioning"
-        type: boolean
-        default: true
-      use-gitversion:
-        description: "Whether to use GitVersion for version calculation instead of semantic versioning"
-        type: boolean
-        default: true
-      build-args:
-        description: "Additional arguments for dotnet build command"
-        type: string
-        required: false
       test-args:
         description: "Additional arguments for dotnet test command"
         type: string
         required: false
+      test-loggers:
+        description: "Test loggers to use (space-separated)"
+        type: string
+        required: false
+        default: 'GitHubActions trx'
       install-web-workload:
         description: "Install ASP.NET Core workload for web development"
         type: boolean
@@ -91,6 +70,20 @@ on:
         description: "Install WebAssembly workload for Blazor WebAssembly development"
         type: boolean
         default: false
+      app-projects:
+        description: "List of csproj files to publish (newline separated)"
+        type: string
+        required: false
+        default: ''
+      app-output:
+        description: "Output directory for published apps"
+        type: string
+        required: false
+        default: 'apps'
+      app-target-framework:
+        description: "Target framework for app publish (e.g. net8.0, net6.0)"
+        type: string
+        required: false
 
 permissions:
   checks: write        # Required to publish test results
@@ -104,85 +97,8 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
 
 jobs:
-  discover-projects:
-    runs-on: ubuntu-latest
-    outputs:
-      version-projects-matrix: ${{ steps.find-projects.outputs.projects-matrix }}
-      nuget-projects-matrix: ${{ steps.find-nuget-projects.outputs.projects-matrix }}
-      app-projects-matrix: ${{ steps.find-app-projects.outputs.projects-matrix }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ github.ref }}
-
-      - name: Find all nugets projects
-        id: find-nuget-projects
-        uses: sandre58/MyWorkflows/actions/find-projects@main
-        with:
-          project-paths: ${{ inputs.nuget-projects }}
-          max-depth: ${{ inputs.max-depth }}
-
-      - name: Find all app projects
-        id: find-app-projects
-        uses: sandre58/MyWorkflows/actions/find-projects@main
-        with:
-          project-paths: ${{ inputs.app-projects }}
-          max-depth: ${{ inputs.max-depth }}
-
-      - name: Merge nuget and app projects
-        id: find-projects
-        shell: bash
-        run: |
-          nuget_projects='${{ steps.find-nuget-projects.outputs.projects }}'
-          app_projects='${{ steps.find-app-projects.outputs.projects }}'
-          
-          # Merge project lists (comma-separated strings)
-          merged_projects=""
-          if [ -n "$nuget_projects" ] && [ "$nuget_projects" != "" ] && [ "$nuget_projects" != "null" ]; then
-            merged_projects="$nuget_projects"
-          fi
-          if [ -n "$app_projects" ] && [ "$app_projects" != "" ] && [ "$app_projects" != "null" ]; then
-            if [ -n "$merged_projects" ]; then
-              merged_projects="$merged_projects,$app_projects"
-            else
-              merged_projects="$app_projects"
-            fi
-          fi
-          
-          echo "Merged projects: $merged_projects"
-          echo "projects=$merged_projects" >> $GITHUB_OUTPUT
-
-          # Get matrices
-          nuget_matrix='${{ steps.find-nuget-projects.outputs.projects-matrix }}'
-          app_matrix='${{ steps.find-app-projects.outputs.projects-matrix }}'
-
-          echo "Raw nuget matrix: $nuget_matrix"
-          echo "Raw app matrix: $app_matrix"
-
-          # Handle empty or null matrices and validate JSON
-          if [ "$nuget_matrix" = "" ] || [ "$nuget_matrix" = "null" ] || ! echo "$nuget_matrix" | jq . >/dev/null 2>&1; then
-            nuget_matrix='{"include":[]}'
-          fi
-          if [ "$app_matrix" = "" ] || [ "$app_matrix" = "null" ] || ! echo "$app_matrix" | jq . >/dev/null 2>&1; then
-            app_matrix='{"include":[]}'
-          fi
-          
-          echo "Cleaned nuget matrix: $nuget_matrix"
-          echo "Cleaned app matrix: $app_matrix"
-          
-          # Merge matrices by combining the include arrays
-          merged_matrix=$(echo "$nuget_matrix $app_matrix" | jq -s '{"include": (.[0].include + .[1].include)}')
-          echo "Merged matrix: $merged_matrix"
-
-          # Compact the JSON to avoid formatting issues with GITHUB_OUTPUT
-          matrix_json_compact=$(echo "$merged_matrix" | jq -c .)
-          echo "projects-matrix=$matrix_json_compact" >> $GITHUB_OUTPUT
-
-  build-and-test:
-    runs-on: windows-latest  # Changed to Windows to support WPF projects
-    needs: [discover-projects]
-    if: always() && needs.discover-projects.result == 'success'
+  build-test-pack:
+    runs-on: windows-latest
     outputs:
       has-test-results: ${{ steps.check_test_results.outputs.found }}
     steps:
@@ -191,43 +107,95 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.ref }}
 
-      - name: Install GitVersion
-        if: inputs.use-gitversion == true
-        uses: gittools/actions/gitversion/setup@v1.1.1
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
         with:
-          versionSpec: '5.x'
+          dotnet-version: ${{ inputs.dotnet-versions }}
 
-      - name: Determine Version
-        if: inputs.use-gitversion == true
-        id: gitversion
-        uses: gittools/actions/gitversion/execute@v1.1.1
-        with:
-          useConfigFile: true
-          configFilePath: GitVersion.yml
-
-      - name: Display GitVersion outputs
-        if: inputs.use-gitversion == true
+      - name: Install Web Workload
+        if: inputs.install-web-workload == 'true'
+        shell: bash
         run: |
-          echo "GitVersion SemVer: ${{ steps.gitversion.outputs.semVer }}"
-          echo "GitVersion FullSemVer: ${{ steps.gitversion.outputs.fullSemVer }}"
-          echo "GitVersion Major: ${{ steps.gitversion.outputs.major }}"
-          echo "GitVersion Minor: ${{ steps.gitversion.outputs.minor }}"
-          echo "GitVersion Patch: ${{ steps.gitversion.outputs.patch }}"
+          echo "Installing ASP.NET Core workload..."
+          dotnet workload install aspire
 
-      - name: Build and Test
-        uses: sandre58/MyWorkflows/actions/build-and-test@main
-        with:
-          dotnet-versions: ${{ inputs.dotnet-versions }}
-          runsettings-file: ${{ inputs.runsettings-file }}
-          build-args: ${{ inputs.build-args }}
-          test-args: ${{ inputs.test-args }}
-          install-web-workload: ${{ inputs.install-web-workload }}
-          install-maui-workload: ${{ inputs.install-maui-workload }}
-          install-ios-workload: ${{ inputs.install-ios-workload }}
-          install-android-workload: ${{ inputs.install-android-workload }}
-          install-maccatalyst-workload: ${{ inputs.install-maccatalyst-workload }}
-          install-windows-workload: ${{ inputs.install-windows-workload }}
-          install-wasm-workload: ${{ inputs.install-wasm-workload }}
+      - name: Install MAUI Workload
+        if: inputs.install-maui-workload == 'true'
+        shell: bash
+        run: |
+          echo "Installing .NET MAUI workload..."
+          dotnet workload install maui
+
+      - name: Install iOS Workload
+        if: inputs.install-ios-workload == 'true'
+        shell: bash
+        run: |
+          echo "Installing iOS workload..."
+          dotnet workload install ios
+
+      - name: Install Android Workload
+        if: inputs.install-android-workload == 'true'
+        shell: bash
+        run: |
+          echo "Installing Android workload..."
+          dotnet workload install android
+
+      - name: Install MacCatalyst Workload
+        if: inputs.install-maccatalyst-workload == 'true'
+        shell: bash
+        run: |
+          echo "Installing MacCatalyst workload..."
+          dotnet workload install maccatalyst
+
+      - name: Install Windows Workload
+        if: inputs.install-windows-workload == 'true'
+        shell: bash
+        run: |
+          echo "Installing Windows workload..."
+          dotnet workload install maui-windows
+
+      - name: Install WebAssembly Workload
+        if: inputs.install-wasm-workload == 'true'
+        shell: bash
+        run: |
+          echo "Installing WebAssembly workload..."
+          dotnet workload install wasm-tools
+
+      - name: Build
+        shell: bash
+        run: |
+          build_args="--configuration ${{ inputs.configuration }}"
+ 
+          if [[ -n "${{ inputs.build-args }}" ]]; then
+            build_args="$build_args ${{ inputs.build-args }}"
+          fi
+          
+          dotnet build $build_args
+
+      - name: Test
+        shell: bash
+        run: |
+          test_args="--configuration ${{ inputs.configuration }}"
+          
+          # Add runsettings file if specified
+          if [[ -n "${{ inputs.runsettings-file }}" ]]; then
+            test_args="$test_args --settings ${{ inputs.runsettings-file }}"
+          fi
+          
+          # Add loggers
+          if [[ -n "${{ inputs.test-loggers }}" ]]; then
+            IFS=' ' read -ra loggers <<< "${{ inputs.test-loggers }}"
+            for logger in "${loggers[@]}"; do
+              test_args="$test_args --logger $logger"
+            done
+          fi
+          
+          # Add custom test arguments
+          if [[ -n "${{ inputs.test-args }}" ]]; then
+            test_args="$test_args ${{ inputs.test-args }}"
+          fi
+          
+          dotnet test $test_args
 
       - name: Check for test result files
         id: check_test_results
@@ -239,146 +207,73 @@ jobs:
             echo "found=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Upload test results
-        if: steps.check_test_results.outputs.found == 'true'
+      - name: Pack
+        shell: bash
+        run: |
+          pack_folder="${{ inputs.nuget-projects }}"
+          
+          if [[ ! -d "$pack_folder" ]]; then
+            echo "❌ Folder '$pack_folder' does not exist, skipping auto pack"
+            exit 0
+          fi
+          
+          echo "🔍 Searching for projects in '$pack_folder'..."
+          
+          # Find all .csproj files in the specified folder
+          project_files=$(find "$pack_folder" -name "*.csproj" -type f)
+          
+          if [[ -z "$project_files" ]]; then
+            echo "❌ No .csproj files found in '$pack_folder'"
+            exit 0
+          fi
+          
+          echo "📦 Found projects to analyze:"
+          echo "$project_files"
+          echo ""
+          
+          packed_count=0
+          skipped_count=0
+          
+          while IFS= read -r project_file; do
+            if [[ -z "$project_file" ]]; then
+              continue
+            fi
+            
+            project_name=$(basename "$project_file" .csproj)
+          
+            # Pack the project
+            echo "📦 Packing project '$project_name'..."
+            if dotnet pack "$project_file" --configuration ${{ inputs.configuration }} --no-build --output "packages/"; then
+              echo "✅ Successfully packed '$project_name'"
+              ((packed_count++))
+            else
+              echo "⏭️  Skipping project '$project_name' (OutputType: '$output_type', SDK: '$sdk_attr') - not packable"
+              ((skipped_count++))
+            fi
+            
+            echo ""
+          done <<< "$project_files"
+          
+          echo "📊 Auto Pack Summary:"
+          echo "  ✅ Packed: $packed_count projects"
+          echo "  ⏭️  Skipped: $skipped_count projects"
+          
+          if [[ $packed_count -gt 0 ]]; then
+            echo "📦 Created packages:"
+            ls -la packages/*.nupkg 2>/dev/null || echo "No packages found"
+          fi
+
+      - name: Upload Packages
         uses: actions/upload-artifact@v4
         with:
-          name: test-results
-          path: ${{ inputs.tests-path }}/**/*
+          name: auto-packed-packages
+          path: packages/*.nupkg
+          if-no-files-found: ignore
 
-  pack-nugets:
-    runs-on: windows-latest
-    needs: ['discover-projects', 'build-and-test']
-    if: always() && needs.build-and-test.result == 'success' && needs.discover-projects.outputs.nuget-projects-matrix != '{"include":[]}'
-    strategy:
-      matrix: ${{ fromJson(needs.discover-projects.outputs.nuget-projects-matrix) }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ github.ref }}
-
-      - name: Install GitVersion
-        if: inputs.use-gitversion == true
-        uses: gittools/actions/gitversion/setup@v1.1.1
-        with:
-          versionSpec: '5.x'
-
-      - name: Determine Version for ${{ matrix.name }}
-        if: inputs.use-gitversion == true
-        id: gitversion
-        uses: gittools/actions/gitversion/execute@v1.1.1
-        with:
-          useConfigFile: true
-          configFilePath: GitVersion.yml
-
-      - name: Set version for ${{ matrix.name }}
-        id: version
-        if: inputs.use-gitversion == false
-        uses: sandre58/MyWorkflows/actions/set-project-version@main
-        with:
-          dotnet-versions: ${{ inputs.dotnet-versions }}
-          project-path: ${{ matrix.path }}
-          project-name: ${{ matrix.name }}
-          project-dir: ${{ matrix.dir }}
-          install-web-workload: ${{ inputs.install-web-workload }}
-          install-maui-workload: ${{ inputs.install-maui-workload }}
-          install-ios-workload: ${{ inputs.install-ios-workload }}
-          install-android-workload: ${{ inputs.install-android-workload }}
-          install-maccatalyst-workload: ${{ inputs.install-maccatalyst-workload }}
-          install-windows-workload: ${{ inputs.install-windows-workload }}
-          install-wasm-workload: ${{ inputs.install-wasm-workload }}
-
-      - name: Pack ${{ matrix.name }}
-        id: pack
-        uses: sandre58/MyWorkflows/actions/nuget-pack@main
-        with:
-          dotnet-versions: ${{ inputs.dotnet-versions }}
-          project-path: ${{ matrix.path }}
-
-      - name: Upload packages
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.name }}.${{ inputs.use-gitversion == true && steps.gitversion.outputs.semVer || steps.version.outputs.version }}
-          path: ${{ steps.pack.outputs.output-directory }}/${{ matrix.name }}.*.nupkg
-
-  publish-apps:
-    runs-on: windows-latest
-    needs: ['discover-projects', 'build-and-test']
-    if: always() && needs.build-and-test.result == 'success' && needs.discover-projects.outputs.app-projects-matrix != '{"include":[]}'
-    continue-on-error: true
-    strategy:
-      matrix: ${{ fromJson(needs.discover-projects.outputs.app-projects-matrix) }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ github.ref }}
-
-      - name: Install GitVersion
-        if: inputs.use-gitversion == true
-        uses: gittools/actions/gitversion/setup@v1.1.1
-        with:
-          versionSpec: '5.x'
-
-      - name: Determine Version for ${{ matrix.name }}
-        if: inputs.use-gitversion == true
-        id: gitversion
-        uses: gittools/actions/gitversion/execute@v1.1.1
-        with:
-          useConfigFile: true
-          configFilePath: GitVersion.yml
-
-      - name: Detect project type
-        id: detect-type
-        if: inputs.app-target-framework == ''
-        uses: sandre58/MyWorkflows/actions/detect-project-type@main
-        with:
-          project-path: ${{ matrix.path }}
-
-      - name: Set version for ${{ matrix.name }}
-        id: version
-        if: inputs.use-gitversion == false
-        uses: sandre58/MyWorkflows/actions/set-project-version@main
-        with:
-          dotnet-versions: ${{ inputs.dotnet-versions }}
-          project-path: ${{ matrix.path }}
-          project-name: ${{ matrix.name }}
-          project-dir: ${{ matrix.dir }}
-          install-web-workload: ${{ inputs.install-web-workload }}
-          install-maui-workload: ${{ inputs.install-maui-workload }}
-          install-ios-workload: ${{ inputs.install-ios-workload }}
-          install-android-workload: ${{ inputs.install-android-workload }}
-          install-maccatalyst-workload: ${{ inputs.install-maccatalyst-workload }}
-          install-windows-workload: ${{ inputs.install-windows-workload }}
-          install-wasm-workload: ${{ inputs.install-wasm-workload }}
-
-      - name: Publish ${{ matrix.name }}
-        id: publish
-        uses: sandre58/MyWorkflows/actions/publish@main
-        with:
-          dotnet-versions: ${{ inputs.dotnet-versions }}
-          project-path: ${{ matrix.path }}
-          output-path: "app/${{ matrix.name }}"
-          framework: ${{ inputs.app-target-framework != '' && inputs.app-target-framework || steps.detect-type.outputs.target-framework }}
-          install-web-workload: ${{ inputs.install-web-workload }}
-          install-maui-workload: ${{ inputs.install-maui-workload }}
-          install-ios-workload: ${{ inputs.install-ios-workload }}
-          install-android-workload: ${{ inputs.install-android-workload }}
-          install-maccatalyst-workload: ${{ inputs.install-maccatalyst-workload }}
-          install-windows-workload: ${{ inputs.install-windows-workload }}
-          install-wasm-workload: ${{ inputs.install-wasm-workload }}
-
-      - name: Upload apps
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.name }}.${{ inputs.use-gitversion == true && steps.gitversion.outputs.semVer || steps.version.outputs.version }}
-          path: ${{ steps.publish.outputs.output-directory }}
-
-  publish-reports:
+  publish-tests-reports:
     runs-on: ubuntu-latest
-    needs: build-and-test
-    if: always() && needs.build-and-test.result == 'success' && needs.build-and-test.outputs.has-test-results == 'true'
+    needs: build-test-pack
+    if: always() && needs.build-test-pack.outputs.has-test-results == 'true'
     steps:
       - uses: actions/checkout@v4
         with:

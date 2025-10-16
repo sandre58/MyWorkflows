@@ -23,6 +23,10 @@ on:
         description: "Whether to enable changelog generation"
         type: boolean
         default: true
+      use-gitversion:
+        description: "Whether to use GitVersion for version calculation instead of semantic versioning"
+        type: boolean
+        default: true
       runsettings-file:
         description: "Path to .runsettings file for test configuration"
         type: string
@@ -175,11 +179,25 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.ref }}
 
+      - name: Install GitVersion
+        if: inputs.use-gitversion == true
+        uses: gittools/actions/gitversion/setup@v1.1.1
+        with:
+          versionSpec: '5.x'
+
+      - name: Determine Version
+        if: inputs.use-gitversion == true
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v1.1.1
+        with:
+          useConfigFile: true
+          configFilePath: GitVersion.yml
+
       - name: Build and Test
         uses: sandre58/MyWorkflows/actions/build-and-test@main
         with:
           project-path: ${{ needs.discover.outputs.project-path }}
-          version: ${{ needs.discover.outputs.version }}
+          version: ${{ inputs.use-gitversion == true && steps.gitversion.outputs.semVer || needs.discover.outputs.version }}
           dotnet-versions: ${{ inputs.dotnet-versions }}
           runsettings-file: ${{ inputs.runsettings-file }}
           install-web-workload: ${{ inputs.install-web-workload }}
@@ -196,7 +214,7 @@ jobs:
         if: needs.discover.outputs.project-type == 'library'
         with:
           project-path: ${{ needs.discover.outputs.project-path }}
-          version: ${{ needs.discover.outputs.version }}
+          version: ${{ inputs.use-gitversion == true && steps.gitversion.outputs.semVer || needs.discover.outputs.version }}
           pack-args: "--no-build"
           output-dir: "artifacts"
 
@@ -206,7 +224,7 @@ jobs:
         if: needs.discover.outputs.project-type == 'application'
         with:
           project-path: ${{ needs.discover.outputs.project-path }}
-          version: ${{ needs.discover.outputs.version }}
+          version: ${{ inputs.use-gitversion == true && steps.gitversion.outputs.semVer || needs.discover.outputs.version }}
           publish-args: "--no-build"
           dotnet-versions: ${{ inputs.dotnet-versions }}
           framework: ${{ needs.discover.outputs.target-framework }}
@@ -225,7 +243,7 @@ jobs:
         run: |
           $publishDir = "${{ steps.publish.outputs.output-directory }}"
           $projectName = "${{ needs.discover.outputs.project-name }}"
-          $version = "${{ needs.discover.outputs.version }}"
+          $version = "${{ inputs.use-gitversion == true && steps.gitversion.outputs.semVer || needs.discover.outputs.version }}"
           $zipFile = "artifacts/$projectName-$version.zip"
           
           Write-Host "Creating zip file: $zipFile"
@@ -266,6 +284,20 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.ref }}
 
+      - name: Install GitVersion
+        if: inputs.use-gitversion == true
+        uses: gittools/actions/gitversion/setup@v1.1.1
+        with:
+          versionSpec: '5.x'
+
+      - name: Determine Version
+        if: inputs.use-gitversion == true
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v1.1.1
+        with:
+          useConfigFile: true
+          configFilePath: GitVersion.yml
+
       - name: Download packages
         uses: actions/download-artifact@v4
         with:
@@ -301,6 +333,20 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.ref }}
 
+      - name: Install GitVersion
+        if: inputs.use-gitversion == true
+        uses: gittools/actions/gitversion/setup@v1.1.1
+        with:
+          versionSpec: '5.x'
+
+      - name: Determine Version
+        if: inputs.use-gitversion == true
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v1.1.1
+        with:
+          useConfigFile: true
+          configFilePath: GitVersion.yml
+
       - name: Download packages
         uses: actions/download-artifact@v4
         with:
@@ -335,6 +381,20 @@ jobs:
         with:
           fetch-depth: 0
           ref: main
+
+      - name: Install GitVersion
+        if: inputs.use-gitversion == true
+        uses: gittools/actions/gitversion/setup@v1.1.1
+        with:
+          versionSpec: '5.x'
+
+      - name: Determine Version
+        if: inputs.use-gitversion == true
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v1.1.1
+        with:
+          useConfigFile: true
+          configFilePath: GitVersion.yml
 
       - name: Calculate changelog tag range
         id: tag-range
@@ -423,7 +483,7 @@ jobs:
         with:
           tag: ${{ needs.discover.outputs.tag }}
           project-name: ${{ needs.discover.outputs.project-name }}
-          version: ${{ needs.discover.outputs.version }}
+          version: ${{ inputs.use-gitversion == true && steps.gitversion.outputs.semVer || needs.discover.outputs.version }}
           is-prerelease: ${{ needs.discover.outputs.is-prerelease }}
           release-body: ${{ inputs.changelog-enabled == true && steps.changelog.outputs.changelog-content || 'Automated release' }}
           artifacts-path: artifacts/*
