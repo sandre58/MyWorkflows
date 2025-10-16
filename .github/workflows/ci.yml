@@ -54,7 +54,7 @@ on:
       use-gitversion:
         description: "Whether to use GitVersion for version calculation instead of semantic versioning"
         type: boolean
-        default: false
+        default: true
       build-args:
         description: "Additional arguments for dotnet build command"
         type: string
