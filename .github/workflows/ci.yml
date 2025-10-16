@@ -124,8 +124,8 @@ jobs:
     runs-on: windows-latest
     outputs:
       has-test-results: ${{ steps.check_test_results.outputs.found }}
-      is-prerelease: ${{ steps.check_test_results.outputs.found }}
-      semVer: ${{ steps.check_test_results.outputs.found }}
+      is-prerelease: ${{ steps.gitversion.outputs.preReleaseTag != '' }}
+      semVer: ${{ steps.gitversion.outputs.semVer }}
     steps:
       - uses: actions/checkout@v4
         with:
