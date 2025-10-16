@@ -331,7 +331,7 @@ jobs:
             push_args="$push_args ${{ inputs.nuget-push-args }}"
           fi
           
-          dotnet nuget push "${{ inputs.nuget-output }}" $push_args
+          dotnet nuget push "${{ inputs.nuget-output }}/*.nupkg" $push_args
 
       - name: Upload Packages
         uses: actions/upload-artifact@v4
