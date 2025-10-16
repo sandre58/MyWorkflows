@@ -223,6 +223,8 @@ jobs:
       - name: Pack
         shell: bash
         run: |
+          set -e  # Exit on any error initially
+          
           pack_folder="${{ inputs.nuget-projects }}"
           
           if [[ ! -d "$pack_folder" ]]; then
@@ -232,8 +234,8 @@ jobs:
           
           echo "🔍 Searching for projects in '$pack_folder'..."
           
-          # Find all .csproj files in the specified folder
-          project_files=$(find "$pack_folder" -name "*.csproj" -type f)
+          # Find all .csproj files in the specified folder (Windows-compatible)
+          project_files=$(find "$pack_folder" -name "*.csproj" -type f 2>/dev/null || true)
           
           if [[ -z "$project_files" ]]; then
             echo "❌ No .csproj files found in '$pack_folder'"
@@ -246,6 +248,9 @@ jobs:
           
           packed_count=0
           skipped_count=0
+          
+          # Disable exit on error for the packing loop
+          set +e
           
           while IFS= read -r project_file; do
             if [[ -z "$project_file" ]]; then
@@ -265,6 +270,9 @@ jobs:
             fi
             
           done <<< "$project_files"
+          
+          # Re-enable exit on error
+          set -e
           
           echo "📊 Pack Summary:"
           echo "  ✅ Packed: $packed_count projects"
