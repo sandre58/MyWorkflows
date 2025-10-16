@@ -98,6 +98,7 @@ env:
 
 jobs:
   build-test-pack:
+    name: Build, Test and Pack
     runs-on: windows-latest
     outputs:
       has-test-results: ${{ steps.check_test_results.outputs.found }}
@@ -161,6 +162,18 @@ jobs:
           echo "Installing WebAssembly workload..."
           dotnet workload install wasm-tools
 
+      - name: Install GitVersion
+        uses: gittools/actions/gitversion/setup@v1.1.1
+        with:
+          versionSpec: '5.x'
+
+      - name: Determine Version
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v1.1.1
+        with:
+          useConfigFile: true
+          configFilePath: GitVersion.yml
+
       - name: Build
         shell: bash
         run: |
@@ -195,9 +208,9 @@ jobs:
             test_args="$test_args ${{ inputs.test-args }}"
           fi
           
-          dotnet test $test_args
+          dotnet test --no-build $test_args
 
-      - name: Check for test result files
+      - name: Check Test Files
         id: check_test_results
         shell: bash
         run: |
@@ -247,16 +260,15 @@ jobs:
               echo "✅ Successfully packed '$project_name'"
               ((packed_count++))
             else
-              echo "⏭️  Skipping project '$project_name' (OutputType: '$output_type', SDK: '$sdk_attr') - not packable"
+              echo "⏭️  Skipping project '$project_name' - not packable or pack failed"
               ((skipped_count++))
             fi
             
-            echo ""
           done <<< "$project_files"
           
-          echo "📊 Auto Pack Summary:"
+          echo "📊 Pack Summary:"
           echo "  ✅ Packed: $packed_count projects"
-          echo "  ⏭️  Skipped: $skipped_count projects"
+          echo "  ⏭️ Skipped: $skipped_count projects"
           
           if [[ $packed_count -gt 0 ]]; then
             echo "📦 Created packages:"
@@ -266,7 +278,7 @@ jobs:
       - name: Upload Packages
         uses: actions/upload-artifact@v4
         with:
-          name: auto-packed-packages
+          name: packages
           path: packages/*.nupkg
           if-no-files-found: ignore
 
