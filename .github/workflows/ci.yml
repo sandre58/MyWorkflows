@@ -298,13 +298,33 @@ jobs:
             
             project_name=$(basename "$file" .csproj)
 
+            # Count packages before packing (more precise pattern)
+            packages_before=$(find "${{ inputs.nuget-output }}" -name "${project_name}.*.nupkg" 2>/dev/null | wc -l)
+            
+            echo "🔍 Debug: Packages before packing: $packages_before"
+            echo "🔍 Debug: Looking for pattern: ${project_name}.*.nupkg in ${{ inputs.nuget-output }}"
+
             # Pack the project
             echo "📦 Packing project '$project_name'..."
             if dotnet pack "$file" --configuration ${{ inputs.configuration }} --no-build --output "${{ inputs.nuget-output }}/"; then
-              echo "✅ Successfully packed '$project_name'"
-              ((packed_count++))
+              # Count packages after packing (more precise pattern)
+              packages_after=$(find "${{ inputs.nuget-output }}" -name "${project_name}.*.nupkg" 2>/dev/null | wc -l)
+              
+              echo "🔍 Debug: Packages after packing: $packages_after"
+              if [[ -d "${{ inputs.nuget-output }}" ]]; then
+                echo "🔍 Debug: Files in output directory:"
+                ls -la "${{ inputs.nuget-output }}/" | grep -E "(${project_name}|\.nupkg)" || echo "   No matching files found"
+              fi
+              
+              if [[ $packages_after -gt $packages_before ]]; then
+                echo "✅ Successfully packed '$project_name' ($(($packages_after - $packages_before)) package(s) created)"
+                ((packed_count++))
+              else
+                echo "⏭️  Skipping project '$project_name' - not packable (no packages produced)"
+                ((skipped_count++))
+              fi
             else
-              echo "⏭️  Skipping project '$project_name' - not packable or pack failed"
+              echo "⏭️  Skipping project '$project_name' - pack command failed"
               ((skipped_count++))
             fi
             
@@ -384,16 +404,10 @@ jobs:
         shell: bash
         run: |
           echo "➡️ Publishing RELEASE packages to: ${{ inputs.nuget-source }}"
-          push_args="--api-key ${{ secrets.NUGET_API_KEY }}"
-          push_args="$push_args --source ${{ inputs.nuget-source }}"
 
-          if [[ -n "${{ inputs.nuget-push-args }}" ]]; then
-            push_args="$push_args ${{ inputs.nuget-push-args }}"
-          fi
-          
           for file in $(find ${{ inputs.nuget-output }} -name "*.nupkg"); do
             echo "Pushing $file..."
-            dotnet nuget push "$file" $push_args
+            dotnet nuget push "$file" --source ${{ inputs.nuget-source }} --api-key ${{ secrets.NUGET_API_KEY }} ${{ inputs.nuget-push-args }}
           done
 
       - name: Upload Packages
