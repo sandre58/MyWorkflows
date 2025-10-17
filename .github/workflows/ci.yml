@@ -321,7 +321,10 @@ jobs:
         shell: bash
         if: ${{ steps.find-app-projects.outputs.projects != '' }}
         run: |
+          set -e  # Exit on any error
+          
           published_count=0
+          failed_count=0
 
           publish_args="--configuration ${{ inputs.configuration }}"
 
@@ -333,29 +336,54 @@ jobs:
             publish_args="$publish_args ${{ inputs.app-publish-args }}"
           fi
 
+          # Disable exit on error for the publishing loop
+          set +e
+
           for file in $(echo '${{ steps.find-app-projects.outputs.projects-list }}' | jq -r '.[]'); do
             # Clean the file path thoroughly (remove all types of whitespace and newlines)
             file=$(echo "$file" | tr -d '\n\r\t' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+            if [[ -z "$file" ]]; then
+              continue
+            fi
 
             project_name=$(basename "$file" .csproj)
             publishDir="${{ inputs.app-output }}/$project_name"
 
             # Publish the project
             echo "📦 Publishing project '$project_name'..."
-            dotnet publish $file --output $publishDir $publish_args
+            if dotnet publish "$file" --output "$publishDir" $publish_args; then
+              echo "✅ Successfully published '$project_name'"
+              
+              # Create archive file
+              archiveFile="${{ inputs.app-output }}/$project_name.tar.gz"
+              echo "Creating archive file: $archiveFile"
+              if (cd "$publishDir" && tar -czf "../$project_name.tar.gz" .); then
+                echo "✅ Archive file created successfully"
+                ((published_count++))
+              else
+                echo "❌ Failed to create archive for '$project_name'"
+                ((failed_count++))
+              fi
+            else
+              echo "❌ Failed to publish '$project_name'"
+              ((failed_count++))
+            fi
 
-            # Create archive file
-            archiveFile="${{ inputs.app-output }}/$project_name.tar.gz"
-            echo "Creating archive file: $archiveFile"
-            (cd "$publishDir" && tar -czf "../$project_name.tar.gz" .)
-            echo "✅ Archive file created successfully"
-
-            ((published_count++))
-            
           done
+          
+          # Re-enable exit on error
+          set -e
           
           echo "📊 Publish Summary:"
           echo "  ✅ Published: $published_count projects"
+          echo "  ❌ Failed: $failed_count projects"
+          
+          # Fail the step if any publications failed
+          if [[ $failed_count -gt 0 ]]; then
+            echo "::error::$failed_count project(s) failed to publish"
+            exit 1
+          fi
 
       - name: Push NuGets
         if: startsWith(github.ref, 'refs/tags/')
