@@ -346,9 +346,9 @@ jobs:
 
             # Zip file
             zipFile="${{ inputs.app-output }}/$project_name.zip"
-            Write-Host "Creating zip file: $zipFile"
-            Compress-Archive -Path "$publishDir/*" -DestinationPath $zipFile -Force
-            Write-Host "✅ Zip file created successfully"
+            echo "Creating zip file: $zipFile"
+            (cd "$publishDir" && zip -r "../$project_name.zip" .)
+            echo "✅ Zip file created successfully"
 
             ((published_count++))
             
