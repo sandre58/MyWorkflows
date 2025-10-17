@@ -85,6 +85,14 @@ runs:
 
         while IFS= read -r project_path; do
           if [[ -n "$project_path" ]]; then
+            # Clean the project path (remove any trailing whitespace/newlines)
+            project_path=$(echo "$project_path" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            
+            # Skip empty paths after cleaning
+            if [[ -z "$project_path" ]]; then
+              continue
+            fi
+            
             # Normalize paths by removing leading ./
             project_path="${project_path#./}"
             project_dir=$(dirname "$project_path")

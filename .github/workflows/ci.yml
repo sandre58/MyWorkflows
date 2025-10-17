@@ -286,7 +286,6 @@ jobs:
           echo "📁 Checking file existence for each discovered project:"
           for file in $(echo '${{ steps.find-nuget-projects.outputs.projects-list }}' | jq -r '.[]'); do
             echo "  🔍 Testing file: '$file'"
-            echo "     Raw file path: $(echo -n "$file" | hexdump -C)"
             echo "     File length: ${#file}"
             echo "     Current directory: $(pwd)"
             echo "     Absolute path would be: $(realpath "$file" 2>/dev/null || echo "Cannot resolve")"
@@ -328,7 +327,6 @@ jobs:
           set +e
 
           for file in $(echo '${{ steps.find-nuget-projects.outputs.projects-list }}' | jq -r '.[]'); do
-
             project_name=$(basename "$file" .csproj)
 
             # Check if project file actually exists with more robust checking
