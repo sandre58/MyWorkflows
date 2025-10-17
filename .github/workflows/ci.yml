@@ -333,7 +333,7 @@ jobs:
 
             # Publish the project
             echo "📦 Publishing project '$project_name'..."
-            dotnet publish $file --no-build --output $publishDir $publish_args
+            dotnet publish $file --output $publishDir $publish_args
 
             # Zip file
             zipFile="${{ inputs.app-output }}/$project_name.zip"
