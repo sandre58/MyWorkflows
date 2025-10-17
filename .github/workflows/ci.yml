@@ -327,6 +327,14 @@ jobs:
           set +e
 
           for file in $(echo '${{ steps.find-nuget-projects.outputs.projects-list }}' | jq -r '.[]'); do
+            # Clean the file path thoroughly (remove all types of whitespace and newlines)
+            file=$(echo "$file" | tr -d '\n\r\t' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            
+            # Skip if file path is empty after cleaning
+            if [[ -z "$file" ]]; then
+              continue
+            fi
+            
             project_name=$(basename "$file" .csproj)
 
             # Check if project file actually exists with more robust checking

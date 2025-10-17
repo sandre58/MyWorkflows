@@ -129,6 +129,7 @@ runs:
             projects_array+="\"$project_path\""
 
             echo "✅ Found project: $project_name at $project_path"
+            echo "    Debug - Path length: ${#project_path}, Raw bytes: $(echo -n "$project_path" | od -c | head -1)"
           fi
         done <<< "$all_projects"
 
