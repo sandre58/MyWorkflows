@@ -344,11 +344,11 @@ jobs:
             echo "📦 Publishing project '$project_name'..."
             dotnet publish $file --output $publishDir $publish_args
 
-            # Zip file
-            zipFile="${{ inputs.app-output }}/$project_name.zip"
-            echo "Creating zip file: $zipFile"
-            (cd "$publishDir" && zip -r "../$project_name.zip" .)
-            echo "✅ Zip file created successfully"
+            # Create archive file
+            archiveFile="${{ inputs.app-output }}/$project_name.tar.gz"
+            echo "Creating archive file: $archiveFile"
+            (cd "$publishDir" && tar -czf "../$project_name.tar.gz" .)
+            echo "✅ Archive file created successfully"
 
             ((published_count++))
             
@@ -385,7 +385,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: apps
-          path: ${{ inputs.app-output }}/*.zip
+          path: ${{ inputs.app-output }}/*.tar.gz
           if-no-files-found: ignore
 
       - name: Check Test Files
