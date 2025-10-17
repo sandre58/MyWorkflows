@@ -1,4 +1,4 @@
-# Changelog for {{ .Info.Title }}
+# Changelog
 
 All notable changes to this project will be documented in this file.  
 This file is generated automatically based on commit history and tags.
