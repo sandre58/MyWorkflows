@@ -563,12 +563,14 @@ jobs:
 
       - name: Download NuGets
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: packages
           path: artifacts
 
       - name: Download Apps
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: apps
           path: artifacts
