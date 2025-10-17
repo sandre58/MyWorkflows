@@ -105,12 +105,6 @@ runs:
             project_dir="${project_dir#./}"
             project_name=$(basename "$project_path" .csproj)
 
-            # Double-check file existence
-            if [[ ! -f "$project_path" ]]; then
-              echo "⚠️ Warning: Project file '$project_path' was found by find but doesn't exist now - skipping"
-              continue
-            fi
-
             if [[ "$first" == true ]]; then
               first=false
             else
@@ -129,7 +123,6 @@ runs:
             projects_array+="\"$project_path\""
 
             echo "✅ Found project: $project_name at $project_path"
-            echo "    Debug - Path length: ${#project_path}, Raw bytes: $(echo -n "$project_path" | od -c | head -1)"
           fi
         done <<< "$all_projects"
 

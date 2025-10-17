@@ -275,45 +275,6 @@ jobs:
         with:
           project-paths: ${{ inputs.app-projects }}
 
-      - name: Debug Project Discovery
-        shell: bash
-        if: ${{ steps.find-nuget-projects.outputs.projects != '' }}
-        run: |
-          echo "🔍 Debugging project discovery results..."
-          echo "Projects found: ${{ steps.find-nuget-projects.outputs.projects }}"
-          echo "Projects list JSON: ${{ steps.find-nuget-projects.outputs.projects-list }}"
-          
-          echo "📁 Checking file existence for each discovered project:"
-          for file in $(echo '${{ steps.find-nuget-projects.outputs.projects-list }}' | jq -r '.[]'); do
-            echo "  🔍 Testing file: '$file'"
-            echo "     File length: ${#file}"
-            echo "     Current directory: $(pwd)"
-            echo "     Absolute path would be: $(realpath "$file" 2>/dev/null || echo "Cannot resolve")"
-            
-            # Try different existence checks
-            if [[ -f "$file" ]]; then
-              echo "  ✅ EXISTS (with -f): $file"
-            elif [[ -e "$file" ]]; then
-              echo "  ⚠️  EXISTS (with -e) but not a regular file: $file"
-              ls -la "$file"
-            else
-              echo "  ❌ MISSING: $file"
-              echo "     📍 Working directory: $(pwd)"
-              echo "     📂 Directory listing around expected location:"
-              dir_path=$(dirname "$file")
-              if [[ -d "$dir_path" ]]; then
-                echo "       Directory $dir_path contents:"
-                ls -la "$dir_path" || echo "       Cannot list directory contents"
-                echo "       Looking for exact filename match:"
-                find "$dir_path" -maxdepth 1 -name "$(basename "$file")" -type f || echo "       No exact match found"
-                echo "       Case-insensitive search:"
-                find "$dir_path" -maxdepth 1 -iname "$(basename "$file")" -type f || echo "       No case-insensitive match found"
-              else
-                echo "       Directory $dir_path does not exist"
-              fi
-            fi
-          done
-
       - name: Pack NuGets
         shell: bash
         if: ${{ steps.find-nuget-projects.outputs.projects != '' }}
@@ -336,33 +297,6 @@ jobs:
             fi
             
             project_name=$(basename "$file" .csproj)
-
-            # Check if project file actually exists with more robust checking
-            echo "🔍 Checking project file: '$file'"
-            if [[ -f "$file" ]]; then
-              echo "  ✅ File exists: $file"
-            elif [[ -e "$file" ]]; then
-              echo "  ⚠️  Path exists but not a regular file: $file"
-              ls -la "$file"
-              echo "  ⏭️  Skipping non-regular file '$project_name'"
-              ((skipped_count++))
-              continue
-            else
-              echo "  ❌ File not found: $file"
-              echo "     Trying case-insensitive search..."
-              dir_path=$(dirname "$file")
-              filename=$(basename "$file")
-              found_file=$(find "$dir_path" -maxdepth 1 -iname "$filename" -type f | head -1)
-              if [[ -n "$found_file" ]]; then
-                echo "     Found with different case: $found_file"
-                file="$found_file"
-                echo "     Using corrected path: $file"
-              else
-                echo "  ⚠️  Warning: Project file '$file' does not exist, skipping..."
-                ((skipped_count++))
-                continue
-              fi
-            fi
 
             # Pack the project
             echo "📦 Packing project '$project_name'..."
@@ -400,6 +334,8 @@ jobs:
           fi
 
           for file in $(echo '${{ steps.find-app-projects.outputs.projects-list }}' | jq -r '.[]'); do
+            # Clean the file path thoroughly (remove all types of whitespace and newlines)
+            file=$(echo "$file" | tr -d '\n\r\t' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
 
             project_name=$(basename "$file" .csproj)
             publishDir="${{ inputs.app-output }}/$project_name"
