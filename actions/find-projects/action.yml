@@ -18,6 +18,9 @@ outputs:
   projects-matrix:
     description: 'JSON matrix for parallel processing'
     value: ${{ steps.find-projects.outputs.projects-matrix }}
+  projects-list:
+    description: 'JSON array of project paths for iteration (can be used with fromJSON in for loops)'
+    value: ${{ steps.find-projects.outputs.projects-list }}
 
 runs:
   using: 'composite'
@@ -33,6 +36,7 @@ runs:
           echo "❌ No project paths provided"
           echo "projects=" >> $GITHUB_OUTPUT
           echo "projects-matrix={\"include\":[]}" >> $GITHUB_OUTPUT
+          echo "projects-list=[]" >> $GITHUB_OUTPUT
           exit 0
         fi
         
@@ -64,15 +68,20 @@ runs:
           echo "❌ No .csproj files found"
           echo "projects=" >> $GITHUB_OUTPUT
           echo "projects-matrix={\"include\":[]}" >> $GITHUB_OUTPUT
+          echo "projects-list=[]" >> $GITHUB_OUTPUT
           exit 0
         fi
 
-        # Build JSON array for matrix strategy
+        # Build JSON array for matrix strategy and projects list
         matrix_json="{"
         matrix_json+='"include":['
+        
+        # Build simple JSON array for iteration
+        projects_array="["
 
         project_list=""
         first=true
+        first_array=true
 
         while IFS= read -r project_path; do
           if [[ -n "$project_path" ]]; then
@@ -89,15 +98,25 @@ runs:
               project_list+=","
             fi
 
+            if [[ "$first_array" == true ]]; then
+              first_array=false
+            else
+              projects_array+=","
+            fi
+
             matrix_json+="{\"name\":\"$project_name\",\"path\":\"$project_path\",\"dir\":\"$project_dir\"}"
             project_list+="$project_name"
+            projects_array+="\"$project_path\""
 
             echo "✅ Found project: $project_name at $project_path"
           fi
         done <<< "$all_projects"
 
         matrix_json+=']}'
+        projects_array+="]"
 
         echo "projects=$project_list" >> $GITHUB_OUTPUT
         echo "projects-matrix=$matrix_json" >> $GITHUB_OUTPUT
+        echo "projects-list=$projects_array" >> $GITHUB_OUTPUT
         echo "Projects matrix: $matrix_json"
+        echo "Projects list: $projects_array"

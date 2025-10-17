@@ -287,7 +287,7 @@ jobs:
           # Disable exit on error for the packing loop
           set +e
 
-          for file in ${{ steps.find-nuget-projects.outputs.projects }}; do
+          for file in $(echo '${{ steps.find-nuget-projects.outputs.projects-list }}' | jq -r '.[]'); do
 
             project_name=$(basename "$file" .csproj)
 
@@ -326,7 +326,7 @@ jobs:
             publish_args="$publish_args ${{ inputs.app-publish-args }}"
           fi
 
-          for file in ${{ steps.find-app-projects.outputs.projects }}; do
+          for file in $(echo '${{ steps.find-app-projects.outputs.projects-list }}' | jq -r '.[]'); do
 
             project_name=$(basename "$file" .csproj)
             publishDir="${{ inputs.app-output }}/$project_name"

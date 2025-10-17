@@ -21,6 +21,7 @@ This action discovers .NET project files (`.csproj`) in a specified directory an
 |------|-------------|------|
 | `projects` | Comma-separated list of project names | String |
 | `projects-matrix` | JSON matrix for parallel processing | JSON |
+| `projects-list` | JSON array of project paths for iteration | JSON Array |
 
 ## Usage
 
@@ -53,7 +54,7 @@ jobs:
         id: find-projects
         uses: sandre58/MyWorkflows/actions/find-projects@main
         with:
-          src-path: 'src'
+          project-paths: 'src'
 
   build-projects:
     needs: discover
@@ -66,23 +67,67 @@ jobs:
         run: dotnet build ${{ matrix.path }}
 ```
 
+### Using with For Loop (New!)
+
+```yaml
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      projects-list: ${{ steps.find-projects.outputs.projects-list }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Find projects
+        id: find-projects
+        uses: sandre58/MyWorkflows/actions/find-projects@main
+        with:
+          project-paths: 'src'
+
+  process-projects:
+    needs: discover
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Process each project
+        shell: bash
+        run: |
+          projects='${{ needs.discover.outputs.projects-list }}'
+          echo "Projects to process: $projects"
+          
+          # Convert JSON array to bash array and iterate
+          for project in $(echo '${{ needs.discover.outputs.projects-list }}' | jq -r '.[]'); do
+            echo "Processing project: $project"
+            # Your processing logic here
+            dotnet build "$project"
+          done
+```
+
 ### Custom Search Path
 
 ```yaml
 - name: Find projects in custom directory
   uses: sandre58/MyWorkflows/actions/find-projects@main
   with:
-    src-path: 'projects/dotnet'
+    project-paths: 'projects/dotnet'
 ```
 
 ## Output Format
 
-### Projects List
+### Projects List (Comma-separated)
 ```
 MyProject1,MyProject2,MyProject3
 ```
 
-### Projects Matrix
+### Projects Array (New! For iteration)
+```json
+[
+  "src/MyProject1/MyProject1.csproj",
+  "src/MyProject2/MyProject2.csproj",
+  "src/MyProject3/MyProject3.csproj"
+]
+```
+
+### Projects Matrix (For parallel jobs)
 ```json
 {
   "include": [
