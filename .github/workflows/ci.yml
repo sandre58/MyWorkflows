@@ -143,49 +143,49 @@ jobs:
           dotnet-version: ${{ inputs.dotnet-versions }}
 
       - name: Install Web Workload
-        if: inputs.install-web-workload == 'true'
+        if: ${{ inputs.install-web-workload == 'true' }}
         shell: bash
         run: |
           echo "Installing ASP.NET Core workload..."
           dotnet workload install aspire
 
       - name: Install MAUI Workload
-        if: inputs.install-maui-workload == 'true'
+        if: ${{ inputs.install-maui-workload == 'true' }}
         shell: bash
         run: |
           echo "Installing .NET MAUI workload..."
           dotnet workload install maui
 
       - name: Install iOS Workload
-        if: inputs.install-ios-workload == 'true'
+        if: ${{ inputs.install-ios-workload == 'true' }}
         shell: bash
         run: |
           echo "Installing iOS workload..."
           dotnet workload install ios
 
       - name: Install Android Workload
-        if: inputs.install-android-workload == 'true'
+        if: ${{ inputs.install-android-workload == 'true' }}
         shell: bash
         run: |
           echo "Installing Android workload..."
           dotnet workload install android
 
       - name: Install MacCatalyst Workload
-        if: inputs.install-maccatalyst-workload == 'true'
+        if: ${{ inputs.install-maccatalyst-workload == 'true' }}
         shell: bash
         run: |
           echo "Installing MacCatalyst workload..."
           dotnet workload install maccatalyst
 
       - name: Install Windows Workload
-        if: inputs.install-windows-workload == 'true'
+        if: ${{ inputs.install-windows-workload == 'true' }}
         shell: bash
         run: |
           echo "Installing Windows workload..."
           dotnet workload install maui-windows
 
       - name: Install WebAssembly Workload
-        if: inputs.install-wasm-workload == 'true'
+        if: ${{ inputs.install-wasm-workload == 'true' }}
         shell: bash
         run: |
           echo "Installing WebAssembly workload..."
