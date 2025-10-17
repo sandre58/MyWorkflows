@@ -34,6 +34,25 @@ on:
         type: string
         required: false
         default: '--skip-duplicate'
+      app-projects:
+        description: "List of csproj files to publish (newline separated)"
+        type: string
+        required: false
+        default: ''
+      app-output:
+        description: "Output directory for published apps"
+        type: string
+        required: false
+        default: 'apps'
+      app-target-framework:
+        description: "Target framework for app publish (e.g. net8.0, net6.0)"
+        type: string
+        required: false
+      app-publish-args:
+        description: "Additional arguments for dotnet publish command"
+        type: string
+        required: false
+        default: '--self-contained true --runtime win-x64 -p:PublishSingleFile=true'
       build-args:
         description: "Additional arguments for dotnet build command"
         type: string
@@ -88,20 +107,6 @@ on:
         description: "Install WebAssembly workload for Blazor WebAssembly development"
         type: boolean
         default: false
-      app-projects:
-        description: "List of csproj files to publish (newline separated)"
-        type: string
-        required: false
-        default: ''
-      app-output:
-        description: "Output directory for published apps"
-        type: string
-        required: false
-        default: 'apps'
-      app-target-framework:
-        description: "Target framework for app publish (e.g. net8.0, net6.0)"
-        type: string
-        required: false
     secrets:
       NUGET_API_KEY:
         description: "API key for publishing stable releases"
@@ -256,48 +261,39 @@ jobs:
           
           dotnet test --no-build $test_args
 
-      - name: Pack
+      - name: Find all NuGets projects
+        id: find-nuget-projects
+        if: ${{ inputs.nuget-projects != '' }}
+        uses: sandre58/MyWorkflows/actions/find-projects@main
+        with:
+          project-paths: ${{ inputs.nuget-projects }}
+
+      - name: Find all app projects
+        id: find-app-projects
+        if: ${{ inputs.app-projects != '' }}
+        uses: sandre58/MyWorkflows/actions/find-projects@main
+        with:
+          project-paths: ${{ inputs.app-projects }}
+
+      - name: Pack NuGets
         shell: bash
+        if: ${{ steps.find-nuget-projects.outputs.projects != '' }}
         run: |
           set -e  # Exit on any error initially
-          
-          pack_folder="${{ inputs.nuget-projects }}"
-          
-          if [[ ! -d "$pack_folder" ]]; then
-            echo "❌ Folder '$pack_folder' does not exist, skipping auto pack"
-            exit 0
-          fi
-          
-          echo "🔍 Searching for projects in '$pack_folder'..."
-          
-          # Find all .csproj files in the specified folder (Windows-compatible)
-          project_files=$(find "$pack_folder" -name "*.csproj" -type f 2>/dev/null || true)
-          
-          if [[ -z "$project_files" ]]; then
-            echo "❌ No .csproj files found in '$pack_folder'"
-            exit 0
-          fi
-          
-          echo "📦 Found projects to analyze:"
-          echo "$project_files"
-          echo ""
           
           packed_count=0
           skipped_count=0
           
           # Disable exit on error for the packing loop
           set +e
-          
-          while IFS= read -r project_file; do
-            if [[ -z "$project_file" ]]; then
-              continue
-            fi
-            
-            project_name=$(basename "$project_file" .csproj)
-          
+
+          for file in ${{ steps.find-nuget-projects.outputs.projects }}; do
+
+            project_name=$(basename "$file" .csproj)
+
             # Pack the project
             echo "📦 Packing project '$project_name'..."
-            if dotnet pack "$project_file" --configuration ${{ inputs.configuration }} --no-build --output "${{ inputs.nuget-output }}/"; then
+            if dotnet pack "$file" --configuration ${{ inputs.configuration }} --no-build --output "${{ inputs.nuget-output }}/"; then
               echo "✅ Successfully packed '$project_name'"
               ((packed_count++))
             else
@@ -305,7 +301,7 @@ jobs:
               ((skipped_count++))
             fi
             
-          done <<< "$project_files"
+          done
           
           # Re-enable exit on error
           set -e
@@ -313,13 +309,46 @@ jobs:
           echo "📊 Pack Summary:"
           echo "  ✅ Packed: $packed_count projects"
           echo "  ⏭️ Skipped: $skipped_count projects"
-          
-          if [[ $packed_count -gt 0 ]]; then
-            echo "📦 Created packages:"
-            ls -la "${{ inputs.nuget-output }}/"/*.nupkg 2>/dev/null || echo "No packages found"
+
+      - name: Publish Apps
+        shell: bash
+        if: ${{ steps.find-app-projects.outputs.projects != '' }}
+        run: |
+          published_count=0
+
+          publish_args="--configuration ${{ inputs.configuration }}"
+
+          if [[ -n "${{ inputs.app-target-framework }}" ]]; then
+            publish_args="$publish_args -f ${{ inputs.app-target-framework }}"
           fi
 
-      - name: Publish packages
+          if [[ -n "${{ inputs.app-publish-args }}" ]]; then
+            publish_args="$publish_args ${{ inputs.app-publish-args }}"
+          fi
+
+          for file in ${{ steps.find-app-projects.outputs.projects }}; do
+
+            project_name=$(basename "$file" .csproj)
+            publishDir="${{ inputs.app-output }}/$project_name"
+
+            # Publish the project
+            echo "📦 Publishing project '$project_name'..."
+            dotnet publish $file --no-build --output $publishDir $publish_args
+
+            # Zip file
+            zipFile="${{ inputs.app-output }}/$project_name.zip"
+            Write-Host "Creating zip file: $zipFile"
+            Compress-Archive -Path "$publishDir/*" -DestinationPath $zipFile -Force
+            Write-Host "✅ Zip file created successfully"
+
+            ((published_count++))
+            
+          done
+          
+          echo "📊 Publish Summary:"
+          echo "  ✅ Published: $published_count projects"
+
+      - name: Push NuGets
         if: startsWith(github.ref, 'refs/tags/')
         shell: bash
         run: |
@@ -341,6 +370,13 @@ jobs:
         with:
           name: packages
           path: ${{ inputs.nuget-output }}/*.nupkg
+          if-no-files-found: ignore
+
+      - name: Upload Apps
+        uses: actions/upload-artifact@v4
+        with:
+          name: apps
+          path: ${{ inputs.app-output }}/*.zip
           if-no-files-found: ignore
 
       - name: Check Test Files
@@ -494,10 +530,16 @@ jobs:
             echo "No changelog file found at: $changelog_path"
           fi
 
-      - name: Download packages
+      - name: Download NuGets
         uses: actions/download-artifact@v4
         with:
           name: packages
+          path: artifacts
+
+      - name: Download Apps
+        uses: actions/download-artifact@v4
+        with:
+          name: apps
           path: artifacts
 
       - name: Create GitHub Release
