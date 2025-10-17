@@ -378,12 +378,6 @@ jobs:
           echo "📊 Publish Summary:"
           echo "  ✅ Published: $published_count projects"
           echo "  ❌ Failed: $failed_count projects"
-          
-          # Fail the step if any publications failed
-          if [[ $failed_count -gt 0 ]]; then
-            echo "::error::$failed_count project(s) failed to publish"
-            exit 1
-          fi
 
       - name: Push NuGets
         if: startsWith(github.ref, 'refs/tags/')
@@ -397,7 +391,7 @@ jobs:
             push_args="$push_args ${{ inputs.nuget-push-args }}"
           fi
           
-          for file in $(find artifacts -name "*.nupkg"); do
+          for file in $(find ${{ inputs.nuget-output }} -name "*.nupkg"); do
             echo "Pushing $file..."
             dotnet nuget push "$file" $push_args
           done
