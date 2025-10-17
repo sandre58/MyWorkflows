@@ -110,7 +110,7 @@ on:
     secrets:
       NUGET_API_KEY:
         description: "API key for publishing stable releases"
-        required: true
+        required: false
 
 permissions:
   checks: write        # Required to publish test results
