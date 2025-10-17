@@ -91,6 +91,12 @@ runs:
             project_dir="${project_dir#./}"
             project_name=$(basename "$project_path" .csproj)
 
+            # Double-check file existence
+            if [[ ! -f "$project_path" ]]; then
+              echo "⚠️ Warning: Project file '$project_path' was found by find but doesn't exist now - skipping"
+              continue
+            fi
+
             if [[ "$first" == true ]]; then
               first=false
             else

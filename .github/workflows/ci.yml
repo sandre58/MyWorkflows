@@ -275,6 +275,32 @@ jobs:
         with:
           project-paths: ${{ inputs.app-projects }}
 
+      - name: Debug Project Discovery
+        shell: bash
+        if: ${{ steps.find-nuget-projects.outputs.projects != '' }}
+        run: |
+          echo "🔍 Debugging project discovery results..."
+          echo "Projects found: ${{ steps.find-nuget-projects.outputs.projects }}"
+          echo "Projects list JSON: ${{ steps.find-nuget-projects.outputs.projects-list }}"
+          
+          echo "📁 Checking file existence for each discovered project:"
+          for file in $(echo '${{ steps.find-nuget-projects.outputs.projects-list }}' | jq -r '.[]'); do
+            if [[ -f "$file" ]]; then
+              echo "  ✅ EXISTS: $file"
+            else
+              echo "  ❌ MISSING: $file"
+              echo "     📍 Working directory: $(pwd)"
+              echo "     📂 Directory listing around expected location:"
+              dir_path=$(dirname "$file")
+              if [[ -d "$dir_path" ]]; then
+                echo "       Directory $dir_path contents:"
+                ls -la "$dir_path" || echo "       Cannot list directory contents"
+              else
+                echo "       Directory $dir_path does not exist"
+              fi
+            fi
+          done
+
       - name: Pack NuGets
         shell: bash
         if: ${{ steps.find-nuget-projects.outputs.projects != '' }}
@@ -290,6 +316,13 @@ jobs:
           for file in $(echo '${{ steps.find-nuget-projects.outputs.projects-list }}' | jq -r '.[]'); do
 
             project_name=$(basename "$file" .csproj)
+
+            # Check if project file actually exists
+            if [[ ! -f "$file" ]]; then
+              echo "⚠️  Warning: Project file '$file' does not exist, skipping..."
+              ((skipped_count++))
+              continue
+            fi
 
             # Pack the project
             echo "📦 Packing project '$project_name'..."
